@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { UserRole, AppointmentStatus, DiscountType } from '@prisma/client'
+import { AppointmentStatus, DiscountType } from '@prisma/client'
 
 // ============================================
 // AUTH SCHEMAS

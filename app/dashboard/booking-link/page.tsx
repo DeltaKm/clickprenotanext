@@ -11,7 +11,6 @@ export default function BookingLinkPage() {
   const [bookingLink, setBookingLink] = useState('')
   const [qrCodeUrl, setQrCodeUrl] = useState('')
   const [copied, setCopied] = useState(false)
-  const [shortLink, setShortLink] = useState('')
   
   // Customization
   const [brandColor, setBrandColor] = useState('#2563eb')
@@ -37,9 +36,6 @@ export default function BookingLinkPage() {
     // Generate QR Code using QR Server API
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`
     setQrCodeUrl(qrUrl)
-    
-    // Simulate short link (in production, use a URL shortener service)
-    setShortLink(link)
     
     // Load customization and analytics
     loadCustomization()
