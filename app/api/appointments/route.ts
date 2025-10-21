@@ -106,6 +106,34 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if tenant has active license
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantContext.id },
+      select: { slug: true, expiresAt: true, isActive: true },
+    })
+
+    if (!tenant || !tenant.isActive) {
+      return NextResponse.json(
+        { error: 'Tenant not available' },
+        { status: 403 }
+      )
+    }
+
+    // Check license expiration (except for demo tenants)
+    const demoTenants = ['demo', 'super-admin', 'admin-system']
+    const isDemo = demoTenants.includes(tenant.slug)
+    const now = new Date()
+    const isExpired = isDemo 
+      ? false 
+      : !tenant.expiresAt || new Date(tenant.expiresAt) < now
+
+    if (isExpired) {
+      return NextResponse.json(
+        { error: 'Le prenotazioni non sono al momento disponibili. Contatta il fornitore del servizio.' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
 
     // Validate input
@@ -154,71 +182,98 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify staff and service belong to tenant
-    const [staff, service] = await Promise.all([
-      prisma.staff.findFirst({
+    // Verify service belongs to tenant
+    const service = await prisma.service.findFirst({
+      where: {
+        id: data.serviceId,
+        tenantId: tenantContext.id,
+        isActive: true,
+      },
+    })
+
+    if (!service) {
+      return NextResponse.json(
+        { error: 'Service not found' },
+        { status: 404 }
+      )
+    }
+
+    // Verify staff if provided
+    let staff = null
+    if (data.staffId) {
+      staff = await prisma.staff.findFirst({
         where: {
           id: data.staffId,
           tenantId: tenantContext.id,
           isActive: true,
         },
-      }),
-      prisma.service.findFirst({
+      })
+
+      if (!staff) {
+        return NextResponse.json(
+          { error: 'Staff not found' },
+          { status: 404 }
+        )
+      }
+    } else {
+      // If no staff specified, try to find any staff for this service
+      const availableStaff = await prisma.staff.findFirst({
         where: {
-          id: data.serviceId,
           tenantId: tenantContext.id,
           isActive: true,
+          staffServices: {
+            some: {
+              serviceId: data.serviceId,
+            },
+          },
         },
-      }),
-    ])
+      })
 
-    if (!staff || !service) {
-      return NextResponse.json(
-        { error: 'Staff or service not found' },
-        { status: 404 }
-      )
+      staff = availableStaff
     }
 
     // Calculate end time
     const startTime = new Date(data.startTime)
     const endTime = new Date(startTime.getTime() + service.duration * 60000)
 
-    // Check for conflicts
-    const conflictingAppointment = await prisma.appointment.findFirst({
-      where: {
-        tenantId: tenantContext.id,
-        staffId: data.staffId,
-        status: {
-          in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
+    // Check for conflicts only if staff is assigned
+    if (staff) {
+      const conflictingAppointment = await prisma.appointment.findFirst({
+        where: {
+          tenantId: tenantContext.id,
+          staffId: staff.id,
+          status: {
+            in: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED],
+          },
+          OR: [
+            {
+              AND: [
+                { startTime: { lte: startTime } },
+                { endTime: { gt: startTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { lt: endTime } },
+                { endTime: { gte: endTime } },
+              ],
+            },
+            {
+              AND: [
+                { startTime: { gte: startTime } },
+                { endTime: { lte: endTime } },
+              ],
+            },
+          ],
         },
-        OR: [
-          {
-            AND: [
-              { startTime: { lte: startTime } },
-              { endTime: { gt: startTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { lt: endTime } },
-              { endTime: { gte: endTime } },
-            ],
-          },
-          {
-            AND: [
-              { startTime: { gte: startTime } },
-              { endTime: { lte: endTime } },
-            ],
-          },
-        ],
-      },
-    })
+      })
 
-    if (conflictingAppointment) {
-      return NextResponse.json(
-        { error: 'Time slot not available' },
-        { status: 409 }
-      )
+      if (conflictingAppointment) {
+        return NextResponse.json(
+          { error: 'Time slot not available' },
+          { status: 409 }
+        )
+      }
     }
 
     // Apply coupon if provided
@@ -262,7 +317,7 @@ export async function POST(request: NextRequest) {
       data: {
         tenantId: tenantContext.id,
         customerId,
-        staffId: data.staffId,
+        staffId: staff?.id,
         serviceId: data.serviceId,
         startTime,
         endTime,

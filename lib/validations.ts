@@ -87,16 +87,16 @@ export const createAppointmentSchema = z.object({
   customerId: z.string().optional(), // Optional if creating new customer inline
   customerEmail: z.string().email().optional(),
   customerName: z.string().min(2).max(100).optional(),
-  customerPhone: z.string().max(20).optional(),
-  staffId: z.string(),
+  customerPhone: z.string().min(1, 'Numero di telefono obbligatorio').max(20).optional(),
+  staffId: z.string().optional(), // Optional: system will auto-assign if not provided
   serviceId: z.string(),
   startTime: z.string().datetime(),
   notes: z.string().max(500).optional(),
   couponCode: z.string().optional(),
 }).refine(
-  (data) => data.customerId || (data.customerEmail && data.customerName),
+  (data) => data.customerId || (data.customerEmail && data.customerName && data.customerPhone),
   {
-    message: 'Either customerId or customer details (email + name) must be provided',
+    message: 'Customer details (email, name, and phone) must be provided',
   }
 )
 

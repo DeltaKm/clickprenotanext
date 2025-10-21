@@ -30,8 +30,7 @@ export default function LoginPage() {
         },
         body: JSON.stringify({ 
           email, 
-          password,
-          tenantSlug: 'demo' // Usa sempre il tenant demo
+          password
         }),
       })
 
@@ -46,8 +45,14 @@ export default function LoginPage() {
       localStorage.setItem('refreshToken', data.refreshToken)
       localStorage.setItem('user', JSON.stringify(data.user))
 
-      // Redirect to dashboard
-      router.push('/dashboard')
+      // Redirect based on role
+      if (data.user.role === 'SUPER_ADMIN') {
+        router.push('/super-admin')
+      } else if (data.user.role === 'ADMIN') {
+        router.push('/admin')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       setError(err.message || 'Si è verificato un errore')
     } finally {
@@ -111,11 +116,8 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-gray-600">Non hai un account? </span>
-              <Link href="/register" className="text-blue-600 hover:underline font-medium">
-                Registrati
-              </Link>
+            <div className="mt-6 text-center text-sm text-gray-500">
+              Per richiedere un account, contatta l&apos;amministratore
             </div>
 
             <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">

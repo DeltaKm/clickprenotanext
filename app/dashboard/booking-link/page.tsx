@@ -27,15 +27,43 @@ export default function BookingLinkPage() {
   })
 
   useEffect(() => {
-    // Get booking link
-    const host = window.location.host
-    const protocol = window.location.protocol
-    const link = `${protocol}//${host}/book`
-    setBookingLink(link)
+    // Get booking link with tenant
+    const fetchBookingLink = async () => {
+      try {
+        const token = localStorage.getItem('accessToken')
+        const response = await fetch('/api/tenant/info', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          const host = window.location.host
+          const protocol = window.location.protocol
+          const tenantSlug = data.tenant.slug
+          
+          // For localhost, use query parameter
+          let link
+          if (host.includes('localhost')) {
+            link = `${protocol}//${host}/book?tenant=${tenantSlug}`
+          } else {
+            // For production, use subdomain
+            link = `${protocol}//${tenantSlug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || host}/book`
+          }
+          
+          setBookingLink(link)
+          
+          // Generate QR Code using QR Server API
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`
+          setQrCodeUrl(qrUrl)
+        }
+      } catch (error) {
+        console.error('Error fetching booking link:', error)
+      }
+    }
     
-    // Generate QR Code using QR Server API
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`
-    setQrCodeUrl(qrUrl)
+    fetchBookingLink()
     
     // Load customization and analytics
     loadCustomization()

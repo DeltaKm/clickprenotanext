@@ -18,37 +18,58 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = validation.data
 
-    // Get tenant from header or body (fallback for localhost without subdomain)
-    let tenantSlug = request.headers.get('x-tenant-slug')
-    
-    // Fallback: try to get tenant from body or use default 'demo'
-    if (!tenantSlug) {
-      tenantSlug = body.tenantSlug || 'demo'
-    }
-
-    // Find tenant
-    const tenant = await prisma.tenant.findUnique({
-      where: { slug: tenantSlug as string },
-    })
-
-    if (!tenant || !tenant.isActive) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      )
-    }
-
-    // Find user
-    const user = await prisma.user.findUnique({
+    // Check if this is a super admin or admin login
+    const adminUser = await prisma.user.findFirst({
       where: {
-        tenantId_email: {
-          tenantId: tenant.id,
-          email,
-        },
+        email,
+        role: { in: ['SUPER_ADMIN', 'ADMIN'] },
+      },
+      include: {
+        tenant: true,
       },
     })
 
-    if (!user || !user.isActive) {
+    let user
+    let tenant
+
+    if (adminUser) {
+      // Super admin or Admin login
+      user = adminUser
+      tenant = adminUser.tenant
+    } else {
+      // Regular tenant-based login
+      // Try to find user by email across all tenants
+      const foundUser = await prisma.user.findFirst({
+        where: {
+          email,
+          role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }, // Exclude admin users
+        },
+        include: {
+          tenant: true,
+        },
+      })
+
+      if (!foundUser || !foundUser.isActive) {
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
+
+      // Check if tenant is active
+      if (!foundUser.tenant || !foundUser.tenant.isActive) {
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        )
+      }
+
+      user = foundUser
+      tenant = foundUser.tenant
+    }
+
+    // Final check: ensure we have both user and tenant
+    if (!user || !tenant) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }

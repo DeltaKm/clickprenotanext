@@ -15,15 +15,9 @@ export default function HomePage() {
           <div className="flex gap-4">
             <Link
               href="/login"
-              className="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium"
-            >
-              Accedi
-            </Link>
-            <Link
-              href="/register"
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
             >
-              Registrati
+              Accedi
             </Link>
           </div>
         </div>
@@ -42,10 +36,10 @@ export default function HomePage() {
         </p>
         <div className="flex gap-4 justify-center">
           <Link
-            href="/register"
+            href="/login"
             className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-lg"
           >
-            Inizia Gratis
+            Accedi al Sistema
           </Link>
           <Link
             href="#features"
@@ -105,15 +99,15 @@ export default function HomePage() {
       {/* CTA Section */}
       <section className="bg-blue-600 text-white py-20">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-4xl font-bold mb-6">Pronto a iniziare?</h2>
+          <h2 className="text-4xl font-bold mb-6">Hai già un account?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Crea il tuo account gratuito in meno di 2 minuti
+            Accedi al sistema per gestire le tue prenotazioni
           </p>
           <Link
-            href="/register"
+            href="/login"
             className="inline-block px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 font-semibold text-lg"
           >
-            Registrati Ora
+            Accedi Ora
           </Link>
         </div>
       </section>

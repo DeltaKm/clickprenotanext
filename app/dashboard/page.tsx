@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { formatDateTime, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
+import { useLicenseStatus } from '@/lib/hooks/useLicenseStatus'
+import { LicenseBanner } from '@/components/LicenseBanner'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -18,13 +20,49 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [bookingLink, setBookingLink] = useState('')
   const [copied, setCopied] = useState(false)
+  const { licenseStatus, loading: licenseLoading } = useLicenseStatus()
 
   useEffect(() => {
     fetchDashboardData()
-    // Get booking link
-    const host = window.location.host
-    const protocol = window.location.protocol
-    setBookingLink(`${protocol}//${host}/book`)
+    // Get booking link with tenant
+    const fetchBookingLink = async () => {
+      try {
+        const token = localStorage.getItem('accessToken')
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        
+        // Get tenant info from stored user data or fetch it
+        const response = await fetch('/api/tenant/info', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          const host = window.location.host
+          const protocol = window.location.protocol
+          
+          // Use subdomain if available, otherwise use query parameter
+          const tenantSlug = data.tenant.slug
+          
+          // For localhost, use query parameter
+          if (host.includes('localhost')) {
+            setBookingLink(`${protocol}//${host}/book?tenant=${tenantSlug}`)
+          } else {
+            // For production, use subdomain
+            setBookingLink(`${protocol}//${tenantSlug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || host}/book`)
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching booking link:', error)
+        // Fallback
+        const host = window.location.host
+        const protocol = window.location.protocol
+        setBookingLink(`${protocol}//${host}/book`)
+      }
+    }
+    
+    fetchBookingLink()
   }, [])
 
   const copyToClipboard = () => {
@@ -37,7 +75,7 @@ export default function DashboardPage() {
     try {
       const token = localStorage.getItem('accessToken')
       
-      // Fetch appointments
+      // Fetch appointments - PENDING and CONFIRMED for dashboard
       const appointmentsRes = await fetch('/api/appointments', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -69,9 +107,13 @@ export default function DashboardPage() {
           totalRevenue,
         })
         
-        // Get recent appointments (next 5)
+        // Get recent appointments (next 5) - only PENDING and CONFIRMED
         const upcoming = appointments
-          .filter((apt: any) => new Date(apt.startTime) >= new Date())
+          .filter((apt: any) => {
+            const isFuture = new Date(apt.startTime) >= new Date()
+            const isRelevant = apt.status === 'PENDING' || apt.status === 'CONFIRMED'
+            return isFuture && isRelevant
+          })
           .sort((a: any, b: any) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
           .slice(0, 5)
         
@@ -110,6 +152,39 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Panoramica della tua attività</p>
       </div>
+
+      {/* License Status Banner */}
+      {!licenseLoading && <LicenseBanner licenseStatus={licenseStatus} />}
+
+      {/* License Expiration Info - Show when active */}
+      {!licenseLoading && !licenseStatus.isExpired && licenseStatus.expiresAt && (
+        <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <Calendar className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">Licenza Attiva</p>
+                  <p className="text-sm text-gray-600">
+                    Scadenza: {new Date(licenseStatus.expiresAt).toLocaleDateString('it-IT', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-green-700">
+                  {licenseStatus.daysRemaining} giorni rimanenti
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Booking Link Widget */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
@@ -226,15 +301,25 @@ export default function DashboardPage() {
                           {appointment.customer.name}
                         </p>
                         <p className="text-sm text-gray-600">
-                          {appointment.service.name} • {appointment.staff.user.name}
+                          {appointment.service.name}
+                          {appointment.staff && ` • ${appointment.staff.user.name}`}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right space-y-1">
                     <p className="text-sm font-medium text-gray-900">
                       {formatDateTime(appointment.startTime)}
                     </p>
+                    <div className="flex items-center justify-end gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        appointment.status === 'CONFIRMED' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {appointment.status === 'CONFIRMED' ? 'Confermato' : 'In Attesa'}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600">
                       {formatCurrency(appointment.totalPrice)}
                     </p>

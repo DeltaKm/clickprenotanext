@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password, name, bio, avatar } = validation.data
+    const serviceIds = body.serviceIds || []
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -122,6 +123,17 @@ export async function POST(request: NextRequest) {
           },
         },
       })
+
+      // Create staff-service relationships
+      if (serviceIds.length > 0) {
+        await tx.staffService.createMany({
+          data: serviceIds.map((serviceId: string) => ({
+            tenantId: context.tenant.id,
+            staffId: staff.id,
+            serviceId,
+          })),
+        })
+      }
 
       return staff
     })

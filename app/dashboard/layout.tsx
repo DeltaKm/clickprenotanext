@@ -33,7 +33,21 @@ export default function DashboardLayout({
       return
     }
 
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    
+    // Redirect Super Admin to their dashboard
+    if (parsedUser.role === 'SUPER_ADMIN') {
+      router.push('/super-admin')
+      return
+    }
+    
+    // Redirect Admin to their dashboard
+    if (parsedUser.role === 'ADMIN') {
+      router.push('/admin')
+      return
+    }
+
+    setUser(parsedUser)
   }, [router])
 
   const handleLogout = () => {

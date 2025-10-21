@@ -6,11 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatDateTime, formatCurrency } from '@/lib/utils'
+import { useLicenseStatus } from '@/lib/hooks/useLicenseStatus'
+import { LicenseBanner } from '@/components/LicenseBanner'
+import { ProtectedAction } from '@/components/ProtectedAction'
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const { licenseStatus, loading: licenseLoading } = useLicenseStatus()
 
   useEffect(() => {
     fetchAppointments()
@@ -125,11 +129,16 @@ export default function AppointmentsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Appuntamenti</h1>
           <p className="text-gray-600 mt-1">Gestisci tutti gli appuntamenti</p>
         </div>
-        <Button>
-          <Calendar className="h-4 w-4 mr-2" />
-          Nuovo Appuntamento
-        </Button>
+        <ProtectedAction licenseStatus={licenseStatus}>
+          <Button>
+            <Calendar className="h-4 w-4 mr-2" />
+            Nuovo Appuntamento
+          </Button>
+        </ProtectedAction>
       </div>
+
+      {/* License Status Banner */}
+      {!licenseLoading && <LicenseBanner licenseStatus={licenseStatus} />}
 
       {/* Filters */}
       <Card>
@@ -193,10 +202,12 @@ export default function AppointmentsPage() {
                         <Briefcase className="h-4 w-4" />
                         {appointment.service.name}
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <User className="h-4 w-4" />
-                        {appointment.staff.user.name}
-                      </div>
+                      {appointment.staff && (
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <User className="h-4 w-4" />
+                          {appointment.staff.user.name}
+                        </div>
+                      )}
                     </div>
 
                     {appointment.notes && (
