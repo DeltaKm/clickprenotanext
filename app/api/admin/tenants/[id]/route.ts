@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 // Update tenant details
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -22,7 +22,7 @@ export async function PUT(
     }
 
     const { slug, name, ownerEmail, ownerName, ownerPassword, packageId, licenseQuantity } = await request.json()
-    const tenantId = params.id
+    const { id: tenantId } = await params
 
     // Get current tenant
     const currentTenant = await prisma.tenant.findUnique({
