@@ -9,7 +9,7 @@ import { AppointmentStatus } from '@prisma/client'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const tenantContext = await getTenantContext(request)
@@ -31,10 +31,12 @@ export async function GET(
       )
     }
 
+    const { id } = await params
+
     // Get service with availability settings
     const service = await prisma.service.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: tenantContext.id,
         isActive: true,
       },

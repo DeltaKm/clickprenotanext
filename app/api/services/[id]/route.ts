@@ -6,7 +6,7 @@ import { UserRole } from '@prisma/client'
 // PUT /api/services/[id] - Update service
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireRole(request, [UserRole.OWNER])
@@ -16,11 +16,12 @@ export async function PUT(
 
     const { context } = authResult
     const body = await request.json()
+    const { id } = await params
 
     // Verify service belongs to tenant
     const existingService = await prisma.service.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: context.tenant.id,
       },
     })
@@ -50,7 +51,9 @@ export async function PUT(
     }
 
     const service = await prisma.service.update({
-      where: { id: params.id },
+      where: {
+        id,
+      },
       data: updateData,
     })
 
@@ -70,7 +73,7 @@ export async function PUT(
 // DELETE /api/services/[id] - Delete service
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireRole(request, [UserRole.OWNER])
@@ -79,11 +82,12 @@ export async function DELETE(
     }
 
     const { context } = authResult
+    const { id } = await params
 
     // Verify service belongs to tenant
     const existingService = await prisma.service.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: context.tenant.id,
       },
     })
@@ -97,7 +101,9 @@ export async function DELETE(
 
     // Delete service (will cascade delete appointments and staff services)
     await prisma.service.delete({
-      where: { id: params.id },
+      where: {
+        id,
+      },
     })
 
     return NextResponse.json({

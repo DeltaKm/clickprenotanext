@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 // PUT /api/staff/[id] - Update staff member
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireRole(request, [UserRole.OWNER])
@@ -17,11 +17,12 @@ export async function PUT(
 
     const { context } = authResult
     const body = await request.json()
+    const { id } = await params
 
     // Verify staff belongs to tenant
     const existingStaff = await prisma.staff.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: context.tenant.id,
       },
       include: {
@@ -55,7 +56,7 @@ export async function PUT(
 
     // Update staff profile
     await prisma.staff.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         bio: body.bio,
       },
@@ -65,14 +66,14 @@ export async function PUT(
     if (body.serviceIds) {
       // Delete existing associations
       await prisma.staffService.deleteMany({
-        where: { staffId: params.id },
+        where: { staffId: id },
       })
 
       // Create new associations
       if (body.serviceIds.length > 0) {
         await prisma.staffService.createMany({
           data: body.serviceIds.map((serviceId: string) => ({
-            staffId: params.id,
+            staffId: id,
             serviceId,
             tenantId: context.tenant.id,
           })),
@@ -95,7 +96,7 @@ export async function PUT(
 // DELETE /api/staff/[id] - Delete staff member
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireRole(request, [UserRole.OWNER])
@@ -104,11 +105,12 @@ export async function DELETE(
     }
 
     const { context } = authResult
+    const { id } = await params
 
     // Verify staff belongs to tenant
     const existingStaff = await prisma.staff.findFirst({
       where: {
-        id: params.id,
+        id,
         tenantId: context.tenant.id,
       },
       include: {
@@ -125,7 +127,7 @@ export async function DELETE(
 
     // Delete staff (will cascade delete staff services and set appointments staffId to null)
     await prisma.staff.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     // Also delete the user account

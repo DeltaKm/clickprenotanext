@@ -6,7 +6,7 @@ import bcrypt from 'bcryptjs'
 // Update admin
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -22,7 +22,7 @@ export async function PUT(
     }
 
     const { email, name, password, totalLicenses, licenseMonths } = await request.json()
-    const adminId = params.id
+    const { id: adminId } = await params
 
     // Check if email is taken by another user
     if (email) {

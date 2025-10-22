@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 // Delete license package
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -20,7 +20,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
     }
 
-    const packageId = params.id
+    const { id: packageId } = await params
 
     // Check if package has used licenses
     const pkg = await prisma.licensePackage.findUnique({
@@ -52,7 +52,7 @@ export async function DELETE(
 // Update license package
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -67,8 +67,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden - Super Admin only' }, { status: 403 })
     }
 
-    const packageId = params.id
     const { quantity, durationMonths } = await request.json()
+    const { id: packageId } = await params
 
     // Get current package
     const pkg = await prisma.licensePackage.findUnique({
