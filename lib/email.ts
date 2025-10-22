@@ -16,14 +16,20 @@ interface EmailConfig {
 function isEmailConfig(value: unknown): value is EmailConfig {
   if (!value || typeof value !== 'object') return false
   const config = value as Record<string, unknown>
+  
+  // Port può essere string o number, lo convertiamo
+  const port = typeof config.port === 'string' ? parseInt(config.port, 10) : (typeof config.port === 'number' ? config.port : NaN)
+  
   return (
     typeof config.host === 'string' &&
-    typeof config.port === 'number' &&
+    (typeof config.port === 'number' || typeof config.port === 'string') &&
     typeof config.secure === 'boolean' &&
     typeof config.user === 'string' &&
     typeof config.pass === 'string' &&
     typeof config.from === 'string' &&
-    typeof config.fromName === 'string'
+    typeof config.fromName === 'string' &&
+    typeof port === 'number' &&
+    !isNaN(port)
   )
 }
 
@@ -75,9 +81,12 @@ const DEFAULT_TEMPLATES: EmailTemplates = {
 
 // Crea transporter SMTP
 function createTransporter(config: EmailConfig) {
+  // Assicuriamoci che port sia un number
+  const port = typeof config.port === 'string' ? parseInt(config.port, 10) : config.port
+  
   return nodemailer.createTransport({
     host: config.host,
-    port: config.port,
+    port: port,
     secure: config.secure,
     auth: {
       user: config.user,
