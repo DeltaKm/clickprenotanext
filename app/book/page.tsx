@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { DatePicker } from '@/components/DatePicker'
 
@@ -526,7 +525,7 @@ export default function BookingPage() {
                           {service.name}
                         </h3>
                         {service.description && (
-                          <p className="text-sm text-gray-600 mb-3">
+                          <p className="text-sm text-gray-600">
                             {service.description}
                           </p>
                         )}
@@ -629,12 +628,12 @@ export default function BookingPage() {
                         {closedMessage ? (
                           <>
                             <p className="text-gray-900 font-medium mb-2">🔒 {closedMessage}</p>
-                            <p className="text-sm text-gray-500">Seleziona un'altra data</p>
+                            <p className="text-sm text-gray-500">Seleziona un&apos;altra data</p>
                           </>
                         ) : (
                           <>
                             <p className="text-gray-600 mb-2">Nessuno slot disponibile per questa data</p>
-                            <p className="text-sm text-gray-500">Prova a selezionare un'altra data</p>
+                            <p className="text-sm text-gray-500">Prova a selezionare un&apos;altra data</p>
                           </>
                         )}
                       </div>

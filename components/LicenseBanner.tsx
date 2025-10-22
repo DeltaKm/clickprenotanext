@@ -52,14 +52,14 @@ export function LicenseBanner({ licenseStatus }: LicenseBannerProps) {
             </p>
             <p className="text-sm text-red-700 mt-2">
               Puoi visualizzare i tuoi dati ma non puoi creare nuovi appuntamenti o clienti.
-              Contatta l'amministratore per {hasNeverHadLicense ? 'acquistare' : 'rinnovare'} la licenza.
+              Contatta l&apos;amministratore per {hasNeverHadLicense ? 'acquistare' : 'rinnovare'} la licenza.
             </p>
             <div className="mt-3">
               <a
                 href="mailto:admin@clickprenota.com?subject=Richiesta Licenza"
                 className="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
               >
-                Contatta l'Amministratore
+                Contatta l&apos;Amministratore
               </a>
             </div>
           </div>
@@ -81,7 +81,7 @@ export function LicenseBanner({ licenseStatus }: LicenseBannerProps) {
               <strong>{expiresAt ? new Date(expiresAt).toLocaleDateString('it-IT') : 'N/A'}</strong>.
             </p>
             <p className="text-sm text-yellow-700 mt-1">
-              Contatta l'amministratore per rinnovare la licenza prima della scadenza.
+              Contatta l&apos;amministratore per rinnovare la licenza prima della scadenza.
             </p>
           </div>
         </div>

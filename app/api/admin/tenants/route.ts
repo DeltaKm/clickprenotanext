@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAccessToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import bcrypt from 'bcryptjs'
 
 export async function GET(request: NextRequest) {
   try {
@@ -140,7 +141,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create tenant and owner in transaction
-    const bcrypt = require('bcryptjs')
     const result = await prisma.$transaction(async (tx) => {
       // Create tenant with admin assignment
       const tenant = await tx.tenant.create({

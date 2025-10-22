@@ -304,7 +304,7 @@ export default function ServicesPage() {
                   </div>
                   
                   <p className="text-xs text-gray-500">
-                    Gli slot definiscono ogni quanto tempo è possibile prenotare. Es: slot di 30 minuti = prenotazioni ogni mezz'ora.
+                    Gli slot definiscono ogni quanto tempo è possibile prenotare. Es: slot di 30 minuti = prenotazioni ogni mezz&apos;ora.
                   </p>
                 </div>
               </div>
