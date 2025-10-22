@@ -43,14 +43,8 @@ export default function BookingLinkPage() {
           const protocol = window.location.protocol
           const tenantSlug = data.tenant.slug
           
-          // For localhost, use query parameter
-          let link
-          if (host.includes('localhost')) {
-            link = `${protocol}//${host}/book?tenant=${tenantSlug}`
-          } else {
-            // For production, use subdomain
-            link = `${protocol}//${tenantSlug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || host}/book`
-          }
+          // Always use query parameter format for compatibility
+          const link = `${protocol}//${host}/book?tenant=${tenantSlug}`
           
           setBookingLink(link)
           
