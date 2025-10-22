@@ -28,9 +28,9 @@ export const whitelabel = {
     return {
       copyright: `© ${new Date().getFullYear()} ${this.companyName}. Tutti i diritti riservati.`,
       links: [
-        { label: 'Privacy Policy', href: '/privacy' },
-        { label: 'Termini di Servizio', href: '/terms' },
-        { label: 'Contatti', href: '/contact' },
+        { label: 'Privacy Policy', href: '#' },
+        { label: 'Termini di Servizio', href: '##' },
+        { label: 'Contatti', href: '###' },
       ],
     }
   },
