@@ -42,16 +42,9 @@ export default function DashboardPage() {
           const host = window.location.host
           const protocol = window.location.protocol
           
-          // Use subdomain if available, otherwise use query parameter
+          // Always use query parameter format for compatibility
           const tenantSlug = data.tenant.slug
-          
-          // For localhost, use query parameter
-          if (host.includes('localhost')) {
-            setBookingLink(`${protocol}//${host}/book?tenant=${tenantSlug}`)
-          } else {
-            // For production, use subdomain
-            setBookingLink(`${protocol}//${tenantSlug}.${process.env.NEXT_PUBLIC_BASE_DOMAIN || host}/book`)
-          }
+          setBookingLink(`${protocol}//${host}/book?tenant=${tenantSlug}`)
         }
       } catch (error) {
         console.error('Error fetching booking link:', error)
