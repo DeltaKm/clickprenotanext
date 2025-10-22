@@ -272,11 +272,48 @@ export async function DELETE(
       }
     }
 
-    // Update status to cancelled
-    await prisma.appointment.update({
+    // Update status to cancelled and get full appointment data for email
+    const updated = await prisma.appointment.update({
       where: { id },
       data: { status: AppointmentStatus.CANCELLED },
+      include: {
+        customer: true,
+        service: true,
+        staff: {
+          include: {
+            user: true,
+          },
+        },
+      },
     })
+
+    // Send cancellation email to customer
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('it-IT', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(date)
+    }
+
+    const formatTime = (date: Date) => {
+      return new Intl.DateTimeFormat('it-IT', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date)
+    }
+
+    await sendBookingRejectionEmail(
+      context.tenant.id,
+      updated.customer.email,
+      {
+        customerName: updated.customer.name,
+        serviceName: updated.service.name,
+        bookingDate: formatDate(updated.startTime),
+        bookingTime: formatTime(updated.startTime),
+      }
+    )
 
     return NextResponse.json({
       message: 'Appointment cancelled',

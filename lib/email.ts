@@ -55,9 +55,9 @@ const DEFAULT_TEMPLATES: EmailTemplates = {
     message: 'Grazie per la tua richiesta di prenotazione presso {{businessName}}. Riceverai una conferma a breve.',
   },
   bookingConfirmation: {
-    subject: 'Prenotazione confermata! ✅',
+    subject: 'Prenotazione confermata',
     message: 'La tua prenotazione presso {{businessName}} è stata confermata!',
-    instructions: 'Ti aspettiamo il {{bookingDate}} alle ore {{bookingTime}}.',
+    instructions: 'Ti aspettiamo {{bookingDate}} alle ore {{bookingTime}}.',
   },
   bookingRejection: {
     subject: 'Prenotazione non disponibile',
@@ -177,11 +177,12 @@ function generateEmailHtml(template: EmailTemplate, variables: Record<string, an
         .button {
           display: inline-block;
           background: ${variables.businessColor || '#2563eb'};
-          color: white;
+          color: white !important;
           padding: 12px 30px;
           text-decoration: none;
           border-radius: 6px;
           margin: 20px 0;
+          font-weight: 600;
         }
       </style>
     </head>
@@ -243,7 +244,7 @@ function generateEmailHtml(template: EmailTemplate, variables: Record<string, an
         
         ${instructions ? `
           <div class="instructions">
-            <strong>📋 Istruzioni:</strong><br>
+            <strong>Istruzioni:</strong><br>
             ${instructions}
           </div>
         ` : ''}
@@ -292,18 +293,38 @@ export async function sendEmail(
     }
 
     // Verifica configurazione SMTP
-    if (!tenant.emailConfig) {
-      console.warn(`No email config for tenant ${tenantId}, skipping email`)
+    let emailConfig: EmailConfig | null = null
+    
+    if (tenant.emailConfig && isEmailConfig(tenant.emailConfig)) {
+      // Usa configurazione personalizzata del tenant
+      emailConfig = tenant.emailConfig
+    } else {
+      // Cerca configurazione globale dell'Admin
+      console.log(`Tenant ${tenantId} non ha config SMTP, cerco quella globale dell'Admin...`)
+      
+      const adminTenant = await prisma.tenant.findFirst({
+        where: {
+          users: {
+            some: {
+              role: 'ADMIN',
+            },
+          },
+        },
+        select: {
+          emailConfig: true,
+        },
+      })
+      
+      if (adminTenant?.emailConfig && isEmailConfig(adminTenant.emailConfig)) {
+        emailConfig = adminTenant.emailConfig
+        console.log(`✅ Uso configurazione globale dell'Admin`)
+      }
+    }
+
+    if (!emailConfig) {
+      console.warn(`No email config for tenant ${tenantId} and no global admin config, skipping email`)
       return { success: false, error: 'No email configuration' }
     }
-
-    // Valida e converte la configurazione email
-    if (!isEmailConfig(tenant.emailConfig)) {
-      console.error(`Invalid email config for tenant ${tenantId}`)
-      return { success: false, error: 'Invalid email configuration format' }
-    }
-
-    const emailConfig = tenant.emailConfig
 
     // Ottieni template (custom o default)
     const customTemplates = isEmailTemplates(tenant.emailTemplates) 

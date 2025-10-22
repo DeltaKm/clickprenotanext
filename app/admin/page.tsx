@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useToast } from '@/components/ui/use-toast'
 import { Toaster } from '@/components/ui/toaster'
@@ -102,6 +103,26 @@ export default function AdminPage() {
     fromName: '',
   })
   const [emailConfigLoading, setEmailConfigLoading] = useState(false)
+  const [showEmailTemplates, setShowEmailTemplates] = useState(false)
+  const [emailTemplates, setEmailTemplates] = useState({
+    bookingRequest: {
+      subject: 'Richiesta di Prenotazione Ricevuta',
+      body: 'Ciao {{customerName}},\n\nGrazie per la tua richiesta di prenotazione!\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\nPrezzo: {{price}}\n\nRiceverai una conferma a breve.',
+    },
+    bookingConfirmation: {
+      subject: 'Conferma Prenotazione - {{serviceName}}',
+      body: 'Ciao {{customerName}},\n\nLa tua prenotazione è confermata!\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\nPrezzo: {{price}}\n\nGrazie per averci scelto!',
+    },
+    bookingRejection: {
+      subject: 'Prenotazione Annullata',
+      body: 'Ciao {{customerName}},\n\nCi dispiace informarti che la tua prenotazione è stata annullata.\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\n\nPer ulteriori informazioni, contattaci.',
+    },
+    ownerNotification: {
+      subject: 'Nuova Prenotazione - {{serviceName}}',
+      body: 'Hai ricevuto una nuova prenotazione:\n\nCliente: {{customerName}}\nEmail: {{customerEmail}}\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}',
+    },
+  })
+  const [emailTemplatesLoading, setEmailTemplatesLoading] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -241,6 +262,98 @@ export default function AdminPage() {
       })
     } finally {
       setEmailConfigLoading(false)
+    }
+  }
+
+  const loadEmailTemplates = async () => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      const response = await fetch('/api/tenant/email-templates', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.emailTemplates) {
+          // Merge con i valori di default per evitare undefined
+          setEmailTemplates({
+            bookingRequest: {
+              subject: data.emailTemplates.bookingRequest?.subject || 'Richiesta di Prenotazione Ricevuta',
+              body: data.emailTemplates.bookingRequest?.body || 'Ciao {{customerName}},\n\nGrazie per la tua richiesta di prenotazione!\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\nPrezzo: {{price}}\n\nRiceverai una conferma a breve.',
+            },
+            bookingConfirmation: {
+              subject: data.emailTemplates.bookingConfirmation?.subject || 'Conferma Prenotazione - {{serviceName}}',
+              body: data.emailTemplates.bookingConfirmation?.body || 'Ciao {{customerName}},\n\nLa tua prenotazione è confermata!\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\nPrezzo: {{price}}\n\nGrazie per averci scelto!',
+            },
+            bookingRejection: {
+              subject: data.emailTemplates.bookingRejection?.subject || 'Prenotazione Annullata',
+              body: data.emailTemplates.bookingRejection?.body || 'Ciao {{customerName}},\n\nCi dispiace informarti che la tua prenotazione è stata annullata.\n\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}\n\nPer ulteriori informazioni, contattaci.',
+            },
+            ownerNotification: {
+              subject: data.emailTemplates.ownerNotification?.subject || 'Nuova Prenotazione - {{serviceName}}',
+              body: data.emailTemplates.ownerNotification?.body || 'Hai ricevuto una nuova prenotazione:\n\nCliente: {{customerName}}\nEmail: {{customerEmail}}\nServizio: {{serviceName}}\nData: {{date}}\nOra: {{time}}',
+            },
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Load email templates error:', error)
+    }
+  }
+
+  const saveEmailTemplates = async () => {
+    setEmailTemplatesLoading(true)
+    try {
+      const token = localStorage.getItem('accessToken')
+      const response = await fetch('/api/tenant/email-templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ emailTemplates }),
+      })
+
+      if (response.ok) {
+        toast({
+          variant: 'success',
+          title: (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              <span>Template Salvati</span>
+            </div>
+          ) as any,
+          description: 'I template email sono stati salvati con successo!',
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          variant: 'destructive',
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              <span>Errore</span>
+            </div>
+          ) as any,
+          description: error.error || 'Impossibile salvare i template',
+        })
+      }
+    } catch (error) {
+      console.error('Save email templates error:', error)
+      toast({
+        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Errore</span>
+          </div>
+        ) as any,
+        description: 'Errore durante il salvataggio',
+      })
+    } finally {
+      setEmailTemplatesLoading(false)
     }
   }
 
@@ -413,9 +526,13 @@ export default function AdminPage() {
           updateData.licenseQuantity = formData.licenseQuantity
         }
         
-        // Aggiungi configurazione email se compilata
+        // Aggiungi configurazione email
+        // Se i campi sono vuoti, invia null per rimuovere la config personalizzata
         if (tenantEmailConfig.host && tenantEmailConfig.user && tenantEmailConfig.from) {
           updateData.emailConfig = tenantEmailConfig
+        } else if (!tenantEmailConfig.host && !tenantEmailConfig.user) {
+          // Campi vuoti = rimuovi configurazione personalizzata
+          updateData.emailConfig = null
         }
 
         const response = await fetch(`/api/admin/tenants/${newTenantData.id}`, {
@@ -763,6 +880,228 @@ export default function AdminPage() {
           )}
         </Card>
 
+        {/* Email Templates Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Template Email
+              </CardTitle>
+              <Button
+                onClick={() => {
+                  loadEmailTemplates()
+                  setShowEmailTemplates(!showEmailTemplates)
+                }}
+                variant="outline"
+              >
+                {showEmailTemplates ? 'Nascondi' : 'Personalizza'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showEmailTemplates && (
+            <CardContent>
+              <div className="space-y-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  Personalizza i messaggi email inviati ai clienti. Usa le variabili tra doppie parentesi graffe per inserire dati dinamici.
+                </p>
+
+                {/* Email Richiesta Prenotazione */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Email di Richiesta Prenotazione (Inviata Subito)
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="request-subject">Oggetto</Label>
+                      <Input
+                        id="request-subject"
+                        placeholder="Richiesta di Prenotazione Ricevuta"
+                        value={emailTemplates.bookingRequest.subject}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingRequest: {
+                            ...emailTemplates.bookingRequest,
+                            subject: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="request-body">Messaggio</Label>
+                      <Textarea
+                        id="request-body"
+                        rows={8}
+                        placeholder="Ciao {{customerName}},..."
+                        value={emailTemplates.bookingRequest.body}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingRequest: {
+                            ...emailTemplates.bookingRequest,
+                            body: e.target.value
+                          }
+                        })}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        <strong>Variabili disponibili:</strong> {'{{customerName}}'}, {'{{serviceName}}'}, {'{{date}}'}, {'{{time}}'}, {'{{price}}'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Conferma Cliente */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" />
+                    Email di Conferma al Cliente
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="confirm-subject">Oggetto</Label>
+                      <Input
+                        id="confirm-subject"
+                        placeholder="Conferma Prenotazione - {{serviceName}}"
+                        value={emailTemplates.bookingConfirmation.subject}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingConfirmation: {
+                            ...emailTemplates.bookingConfirmation,
+                            subject: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="confirm-body">Messaggio</Label>
+                      <Textarea
+                        id="confirm-body"
+                        rows={8}
+                        placeholder="Ciao {{customerName}},..."
+                        value={emailTemplates.bookingConfirmation.body}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingConfirmation: {
+                            ...emailTemplates.bookingConfirmation,
+                            body: e.target.value
+                          }
+                        })}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        <strong>Variabili disponibili:</strong> {'{{customerName}}'}, {'{{serviceName}}'}, {'{{date}}'}, {'{{time}}'}, {'{{price}}'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Cancellazione/Rifiuto */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Email di Cancellazione Prenotazione
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="rejection-subject">Oggetto</Label>
+                      <Input
+                        id="rejection-subject"
+                        placeholder="Prenotazione Annullata"
+                        value={emailTemplates.bookingRejection.subject}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingRejection: {
+                            ...emailTemplates.bookingRejection,
+                            subject: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="rejection-body">Messaggio</Label>
+                      <Textarea
+                        id="rejection-body"
+                        rows={8}
+                        placeholder="Ciao {{customerName}},..."
+                        value={emailTemplates.bookingRejection.body}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          bookingRejection: {
+                            ...emailTemplates.bookingRejection,
+                            body: e.target.value
+                          }
+                        })}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        <strong>Variabili disponibili:</strong> {'{{customerName}}'}, {'{{serviceName}}'}, {'{{date}}'}, {'{{time}}'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Notifica Proprietario */}
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Email di Notifica al Proprietario
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="owner-subject">Oggetto</Label>
+                      <Input
+                        id="owner-subject"
+                        placeholder="Nuova Prenotazione - {{serviceName}}"
+                        value={emailTemplates.ownerNotification.subject}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          ownerNotification: {
+                            ...emailTemplates.ownerNotification,
+                            subject: e.target.value
+                          }
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="owner-body">Messaggio</Label>
+                      <Textarea
+                        id="owner-body"
+                        rows={8}
+                        placeholder="Hai ricevuto una nuova prenotazione..."
+                        value={emailTemplates.ownerNotification.body}
+                        onChange={(e) => setEmailTemplates({
+                          ...emailTemplates,
+                          ownerNotification: {
+                            ...emailTemplates.ownerNotification,
+                            body: e.target.value
+                          }
+                        })}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        <strong>Variabili disponibili:</strong> {'{{customerName}}'}, {'{{customerEmail}}'}, {'{{serviceName}}'}, {'{{date}}'}, {'{{time}}'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={saveEmailTemplates}
+                    disabled={emailTemplatesLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {emailTemplatesLoading ? 'Salvataggio...' : 'Salva Template'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowEmailTemplates(false)}
+                    variant="outline"
+                  >
+                    Annulla
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
         {/* Stats Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -1057,6 +1396,32 @@ export default function AdminPage() {
               <p className="text-xs text-gray-500 mb-3">
                 Configura SMTP specifico per questa azienda. Se non configurato, userà le impostazioni globali dell&apos;Admin.
               </p>
+
+              {/* Pulsante per applicare config globale */}
+              {showTenantEmailConfig && tenantEmailConfig.host && (
+                <div className="mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setTenantEmailConfig({
+                        host: '',
+                        port: '587',
+                        secure: false,
+                        user: '',
+                        pass: '',
+                        from: '',
+                        fromName: '',
+                      })
+                    }}
+                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Rimuovi Configurazione Personalizzata (Usa Globale)
+                  </Button>
+                </div>
+              )}
               
               {showTenantEmailConfig && (
                 <div className="space-y-3 p-4 bg-gray-50 rounded-lg">

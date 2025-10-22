@@ -91,14 +91,21 @@ export async function POST(request: NextRequest) {
       data: { emailConfig },
     })
 
-    // Applica configurazione a tutti i tenant gestiti da questo admin
+    // Applica configurazione SOLO ai tenant che NON hanno una configurazione personalizzata
+    // (cioè quelli con emailConfig null o undefined)
     await prisma.tenant.updateMany({
-      where: { adminId: payload.userId },
+      where: { 
+        adminId: payload.userId,
+        OR: [
+          { emailConfig: { equals: null } },
+          { emailConfig: { equals: {} as any } },
+        ],
+      },
       data: { emailConfig },
     })
 
     return NextResponse.json({
-      message: 'Configurazione email salvata e applicata a tutti i business',
+      message: 'Configurazione email salvata. Applicata solo ai business senza configurazione personalizzata.',
       emailConfig,
     })
   } catch (error) {

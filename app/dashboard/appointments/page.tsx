@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Calendar, Clock, User, Briefcase, Filter, Eye, Users, Umbrella } from 'lucide-react'
+import { Calendar, Clock, User, Briefcase, Filter, Eye, Users, Umbrella, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -34,6 +34,7 @@ export default function AppointmentsPage() {
   })
   const [formLoading, setFormLoading] = useState(false)
   const [cancelDialog, setCancelDialog] = useState<{ open: boolean; appointmentId: string | null }>({ open: false, appointmentId: null })
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null) // ID dell'appuntamento in aggiornamento
   const { licenseStatus, loading: licenseLoading } = useLicenseStatus()
 
   useEffect(() => {
@@ -141,6 +142,7 @@ export default function AppointmentsPage() {
   }
 
   const handleUpdateStatus = async (appointmentId: string, newStatus: string) => {
+    setUpdatingStatus(appointmentId)
     try {
       const token = localStorage.getItem('accessToken')
       const response = await fetch(`/api/appointments/${appointmentId}`, {
@@ -153,10 +155,12 @@ export default function AppointmentsPage() {
       })
 
       if (response.ok) {
-        fetchAppointments()
+        await fetchAppointments()
       }
     } catch (error) {
       console.error('Error updating appointment:', error)
+    } finally {
+      setUpdatingStatus(null)
     }
   }
 
@@ -176,11 +180,15 @@ export default function AppointmentsPage() {
         },
       })
 
-      if (response.ok) {
-        fetchAppointments()
+      if (!response.ok) {
+        throw new Error('Failed to cancel appointment')
       }
+
+      await fetchAppointments()
+      // Il dialog si chiuderà automaticamente grazie al ConfirmDialog
     } catch (error) {
       console.error('Error cancelling appointment:', error)
+      throw error // Rilancia l'errore per far rimanere aperto il dialog
     }
   }
 
@@ -370,14 +378,17 @@ export default function AppointmentsPage() {
                         <Button
                           size="sm"
                           onClick={() => handleUpdateStatus(appointment.id, 'CONFIRMED')}
+                          disabled={updatingStatus === appointment.id}
                           className="flex-1"
                         >
+                          {updatingStatus === appointment.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                           Conferma
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleCancelClick(appointment.id)}
+                          disabled={updatingStatus === appointment.id}
                           className="flex-1"
                         >
                           Cancella
@@ -390,8 +401,10 @@ export default function AppointmentsPage() {
                         <Button
                           size="sm"
                           onClick={() => handleUpdateStatus(appointment.id, 'COMPLETED')}
+                          disabled={updatingStatus === appointment.id}
                           className="flex-1"
                         >
+                          {updatingStatus === appointment.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                           Completa
                         </Button>
                         <Button
@@ -695,8 +708,10 @@ export default function AppointmentsPage() {
                         handleUpdateStatus(selectedAppointment.id, 'CONFIRMED')
                         setShowDetailsModal(false)
                       }}
+                      disabled={updatingStatus === selectedAppointment.id}
                       className="flex-1"
                     >
+                      {updatingStatus === selectedAppointment.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Conferma Appuntamento
                     </Button>
                     <Button
@@ -705,6 +720,7 @@ export default function AppointmentsPage() {
                         handleCancelClick(selectedAppointment.id)
                         setShowDetailsModal(false)
                       }}
+                      disabled={updatingStatus === selectedAppointment.id}
                       className="flex-1"
                     >
                       Cancella
@@ -718,8 +734,10 @@ export default function AppointmentsPage() {
                         handleUpdateStatus(selectedAppointment.id, 'COMPLETED')
                         setShowDetailsModal(false)
                       }}
+                      disabled={updatingStatus === selectedAppointment.id}
                       className="flex-1"
                     >
+                      {updatingStatus === selectedAppointment.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Segna come Completato
                     </Button>
                     <Button
@@ -728,6 +746,7 @@ export default function AppointmentsPage() {
                         handleCancelClick(selectedAppointment.id)
                         setShowDetailsModal(false)
                       }}
+                      disabled={updatingStatus === selectedAppointment.id}
                       className="flex-1"
                     >
                       Cancella

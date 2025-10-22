@@ -32,13 +32,13 @@ export function ConfirmDialog({
   confirmText = 'Conferma',
   cancelText = 'Annulla',
   variant = 'destructive',
-  isLoading = false,
+  isLoading,
   icon,
   iconColor,
   iconBgColor,
 }: ConfirmDialogProps) {
   const [internalLoading, setInternalLoading] = useState(false)
-  const loading = isLoading || internalLoading
+  const loading = isLoading !== undefined ? isLoading : internalLoading
 
   const handleConfirm = async () => {
     if (isLoading !== undefined) {
