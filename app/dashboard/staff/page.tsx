@@ -206,7 +206,7 @@ export default function StaffPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome</Label>
                   <Input
@@ -228,14 +228,16 @@ export default function StaffPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password {editingId && '(lascia vuoto per non modificare)'}</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
                     id="password"
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder={editingId ? "Lascia vuoto per non modificare" : "Minimo 8 caratteri"}
+                    className="placeholder:text-xs"
                     required={!editingId}
                     minLength={8}
                   />

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Calendar, Users, Briefcase, UserCircle, LogOut, LayoutDashboard, Link as LinkIcon } from 'lucide-react'
+import { Calendar, Users, Briefcase, UserCircle, LogOut, LayoutDashboard, Link as LinkIcon, Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAuthCheck, setupAuthInterceptor } from '@/lib/useAuth'
 import { whitelabel } from '@/lib/whitelabel'
@@ -16,6 +16,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   
   // Check auth status
   useAuthCheck()
@@ -79,16 +80,35 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b z-50 flex items-center justify-between px-4">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Calendar className="h-6 w-6 text-blue-600" />
+          <span className="text-lg font-bold text-gray-900">{whitelabel.appName}</span>
+        </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+      </div>
+
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white border-r">
+      <div className={`fixed inset-y-0 left-0 w-64 bg-white border-r z-40 transform transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b">
+          {/* Logo - Hidden on mobile */}
+          <div className="hidden lg:block p-6 border-b">
             <Link href="/dashboard" className="flex items-center gap-2">
               <Calendar className="h-8 w-8 text-blue-600" />
               <span className="text-xl font-bold text-gray-900">{whitelabel.appName}</span>
             </Link>
           </div>
+          {/* Mobile spacing */}
+          <div className="lg:hidden h-16"></div>
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
@@ -98,6 +118,7 @@ export default function DashboardLayout({
                 <Link
                   key={item.name}
                   href={item.href}
+                  onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-blue-50 text-blue-600 font-medium'
@@ -137,9 +158,17 @@ export default function DashboardLayout({
         </div>
       </div>
 
+      {/* Overlay for mobile */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Main content */}
-      <div className="pl-64">
-        <main className="p-8">
+      <div className="lg:pl-64 pt-16 lg:pt-0">
+        <main className="p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

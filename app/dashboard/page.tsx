@@ -142,8 +142,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">Panoramica della tua attività</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Panoramica della tua attività</p>
       </div>
 
       {/* License Status Banner */}
@@ -153,14 +153,14 @@ export default function DashboardPage() {
       {!licenseLoading && !licenseStatus.isExpired && licenseStatus.expiresAt && (
         <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                   <Calendar className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-900">Licenza Attiva</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-semibold text-gray-900 text-sm sm:text-base">Licenza Attiva</p>
+                  <p className="text-xs sm:text-sm text-gray-600">
                     Scadenza: {new Date(licenseStatus.expiresAt).toLocaleDateString('it-IT', {
                       day: 'numeric',
                       month: 'long',
@@ -169,8 +169,8 @@ export default function DashboardPage() {
                   </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-green-700">
+              <div className="text-left sm:text-right">
+                <p className="text-xs sm:text-sm font-medium text-green-700">
                   {licenseStatus.daysRemaining} giorni rimanenti
                 </p>
               </div>
@@ -182,29 +182,31 @@ export default function DashboardPage() {
       {/* Booking Link Widget */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LinkIcon className="h-5 w-5 text-blue-600" />
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <LinkIcon className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             Link di Prenotazione Pubblico
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-xs sm:text-sm text-gray-600 mb-4">
             Condividi questo link con i tuoi clienti per permettere loro di prenotare online
           </p>
-          <div className="flex gap-2 mb-4">
-            <div className="flex-1 bg-white rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm text-gray-700">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
+            <div className="flex-1 bg-white rounded-lg border border-gray-300 px-3 sm:px-4 py-2 sm:py-3 font-mono text-xs sm:text-sm text-gray-700 break-all">
               {bookingLink || 'Caricamento...'}
             </div>
-            <Button onClick={copyToClipboard} variant="outline" className="gap-2">
-              <Copy className="h-4 w-4" />
-              {copied ? 'Copiato!' : 'Copia'}
-            </Button>
-            <Button asChild variant="default" className="gap-2">
-              <a href={bookingLink} target="_blank" rel="noopener noreferrer">
-                <ExternalLink className="h-4 w-4" />
-                Apri
-              </a>
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={copyToClipboard} variant="outline" className="gap-2 flex-1 sm:flex-none">
+                <Copy className="h-4 w-4" />
+                <span className="sm:inline">{copied ? 'Copiato!' : 'Copia'}</span>
+              </Button>
+              <Button asChild variant="default" className="gap-2 flex-1 sm:flex-none">
+                <a href={bookingLink} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" />
+                  <span className="sm:inline">Apri</span>
+                </a>
+              </Button>
+            </div>
           </div>
           <Link href="/dashboard/booking-link">
             <Button variant="link" className="p-0 h-auto text-blue-600">
@@ -282,29 +284,29 @@ export default function DashboardPage() {
               {recentAppointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                  className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 gap-3"
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 w-full">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <Calendar className="h-5 w-5 text-blue-600" />
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-gray-900 text-sm sm:text-base truncate">
                           {appointment.customer.name}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">
                           {appointment.service.name}
                           {appointment.staff && ` • ${appointment.staff.user.name}`}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right space-y-1">
-                    <p className="text-sm font-medium text-gray-900">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start w-full sm:w-auto gap-2 sm:space-y-1">
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">
                       {formatDateTime(appointment.startTime)}
                     </p>
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
                         appointment.status === 'CONFIRMED' 
                           ? 'bg-green-100 text-green-800' 
@@ -312,10 +314,10 @@ export default function DashboardPage() {
                       }`}>
                         {appointment.status === 'CONFIRMED' ? 'Confermato' : 'In Attesa'}
                       </span>
+                      <p className="text-xs sm:text-sm text-gray-600 font-medium">
+                        {formatCurrency(appointment.totalPrice)}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      {formatCurrency(appointment.totalPrice)}
-                    </p>
                   </div>
                 </div>
               ))}

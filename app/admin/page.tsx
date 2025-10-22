@@ -326,18 +326,18 @@ export default function AdminPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
         <div className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <Shield className="h-8 w-8" />
-                <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+                <Shield className="h-6 w-6 sm:h-8 sm:w-8" />
+                <h1 className="text-2xl sm:text-3xl font-bold">Admin Dashboard</h1>
               </div>
-              <p className="text-purple-100">Gestione delle tue attività</p>
+              <p className="text-purple-100 text-sm sm:text-base">Gestione delle tue attività</p>
             </div>
             <Button
               variant="outline"
               onClick={handleLogout}
-              className="bg-white/10 hover:bg-white/20 text-white border-white/30"
+              className="bg-white/10 hover:bg-white/20 text-white border-white/30 w-full sm:w-auto"
             >
               <LogOut className="h-4 w-4 mr-2" />
               Logout
@@ -351,21 +351,21 @@ export default function AdminPage() {
         {stats?.licenses && (
           <Card className="mb-6 bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Le Tue Licenze</h3>
-                  <div className="flex gap-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="w-full">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">Le Tue Licenze</h3>
+                  <div className="grid grid-cols-3 gap-3 sm:gap-6">
                     <div>
-                      <p className="text-sm text-gray-600">Totali</p>
-                      <p className="text-2xl font-bold text-blue-600">{stats.licenses.total}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Totali</p>
+                      <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.licenses.total}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Usate</p>
-                      <p className="text-2xl font-bold text-purple-600">{stats.licenses.used}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Usate</p>
+                      <p className="text-xl sm:text-2xl font-bold text-purple-600">{stats.licenses.used}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Disponibili</p>
-                      <p className="text-2xl font-bold text-green-600">{stats.licenses.available}</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Disponibili</p>
+                      <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.licenses.available}</p>
                     </div>
                   </div>
                 </div>
@@ -471,14 +471,14 @@ export default function AdminPage() {
         {/* Aziende List */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <Building2 className="h-5 w-5" />
                 Gestione Aziende
               </CardTitle>
               <Button
                 onClick={openCreateDialog}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Aggiungi Azienda
@@ -492,11 +492,11 @@ export default function AdminPage() {
                   key={azienda.id}
                   className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-lg">{azienda.name}</h3>
-                        <Badge variant={azienda.isActive ? 'default' : 'secondary'}>
+                  <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
+                    <div className="flex-1 w-full">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-base sm:text-lg">{azienda.name}</h3>
+                        <Badge variant={azienda.isActive ? 'default' : 'secondary'} className="text-xs">
                           {azienda.isActive ? (
                             <span className="flex items-center gap-1">
                               <CheckCircle className="h-3 w-3" />
@@ -526,9 +526,9 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      <div className="flex gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-2 sm:flex sm:gap-4 gap-2 text-xs sm:text-sm text-gray-600">
                         <span>👥 {azienda._count.users} utenti</span>
-                        <span>📅 {azienda._count.appointments} appuntamenti</span>
+                        <span>📅 {azienda._count.appointments} app.</span>
                         <span>👤 {azienda._count.customers} clienti</span>
                         <span>🛠️ {azienda._count.services} servizi</span>
                       </div>
@@ -544,19 +544,21 @@ export default function AdminPage() {
                       </p>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => openEditDialog(azienda)}
+                        className="flex-1 sm:flex-none"
                       >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Modifica
+                        <Edit className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Modifica</span>
                       </Button>
                       <Button
                         variant={azienda.isActive ? 'destructive' : 'default'}
                         size="sm"
                         onClick={() => toggleAziendaStatus(azienda.id, azienda.isActive)}
+                        className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
                         {azienda.isActive ? 'Disattiva' : 'Attiva'}
                       </Button>
@@ -564,6 +566,7 @@ export default function AdminPage() {
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDelete(azienda.id, azienda.name)}
+                        className="w-10 sm:w-auto"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -647,14 +650,15 @@ export default function AdminPage() {
 
             <div>
               <Label htmlFor="ownerPassword">
-                Password Owner {editingAzienda && '(lascia vuoto per non modificare)'}
+                Password Owner
               </Label>
               <Input
                 id="ownerPassword"
                 type="password"
                 value={formData.ownerPassword}
                 onChange={(e) => setFormData({ ...formData, ownerPassword: e.target.value })}
-                placeholder="Minimo 8 caratteri"
+                placeholder={editingAzienda ? "Lascia vuoto per non modificare" : "Minimo 8 caratteri"}
+                className="placeholder:text-xs"
                 required={!editingAzienda}
                 minLength={8}
               />
