@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { DatePicker } from '@/components/DatePicker'
 
-type Step = 'service' | 'staff' | 'datetime' | 'details' | 'confirm'
+type Step = 'service' | 'staff' | 'datetime' | 'details' | 'confirm' | 'people' | 'equipment'
 
 export default function BookingPage() {
   const [step, setStep] = useState<Step>('service')
@@ -26,6 +26,16 @@ export default function BookingPage() {
     phone: '',
     notes: '',
   })
+  // Category-specific data
+  const [numberOfPeople, setNumberOfPeople] = useState(2)
+  const [beachEquipment, setBeachEquipment] = useState({
+    umbrellas: 0,
+    sunbeds: 0,
+    deckchairs: 0,
+    withRestaurant: false,
+  })
+  const [customFieldsData, setCustomFieldsData] = useState<any[]>([])
+  const [totalPrice, setTotalPrice] = useState(0)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -160,7 +170,20 @@ export default function BookingPage() {
   const handleServiceSelect = async (service: any) => {
     setSelectedService(service)
     
-    // Fetch staff for this service
+    // Different flow based on service category
+    if (service.category === 'RESTAURANT') {
+      // Restaurant: go to people selection
+      setStep('people')
+      return
+    }
+    
+    if (service.category === 'BEACH') {
+      // Beach: go to equipment selection
+      setStep('equipment')
+      return
+    }
+    
+    // Professional: fetch staff for this service
     try {
       const response = await fetch('/api/staff?isActive=true', {
         headers: {
@@ -195,6 +218,75 @@ export default function BookingPage() {
     setSelectedStaff(staffMember)
     setStep('datetime')
   }
+
+  // Calculate total price
+  const calculateTotalPrice = () => {
+    if (!selectedService) return 0
+
+    let total = 0
+    const category = selectedService.category
+
+    if (category === 'PROFESSIONAL') {
+      // Professional: use service price
+      total = selectedService.price || 0
+    } else if (category === 'RESTAURANT') {
+      const config = selectedService.restaurantConfig || {}
+      const pricePerPerson = config.pricePerPerson || 0
+      
+      // Base price: price per person * number of people
+      total = pricePerPerson * numberOfPeople
+      
+      // Add custom fields
+      const customFields = config.customFields || []
+      customFieldsData.forEach(fieldData => {
+        const field = customFields.find((f: any) => f.name === fieldData.name)
+        if (field && fieldData.selected) {
+          if (field.type === 'checkbox') {
+            total += field.price || 0
+          } else if (field.type === 'quantity') {
+            total += (field.price || 0) * (fieldData.quantity || 0)
+          }
+        }
+      })
+    } else if (category === 'BEACH') {
+      const config = selectedService.beachConfig || {}
+      const pricePerPerson = config.pricePerPerson || 0
+      
+      // Base price: price per person * number of people
+      total = pricePerPerson * numberOfPeople
+      
+      // Add equipment prices
+      if (config.umbrellas?.price) {
+        total += (config.umbrellas.price || 0) * beachEquipment.umbrellas
+      }
+      if (config.sunbeds?.price) {
+        total += (config.sunbeds.price || 0) * beachEquipment.sunbeds
+      }
+      if (config.deckchairs?.price) {
+        total += (config.deckchairs.price || 0) * beachEquipment.deckchairs
+      }
+      
+      // Add custom fields
+      const customFields = config.customFields || []
+      customFieldsData.forEach(fieldData => {
+        const field = customFields.find((f: any) => f.name === fieldData.name)
+        if (field && fieldData.selected) {
+          if (field.type === 'checkbox') {
+            total += field.price || 0
+          } else if (field.type === 'quantity') {
+            total += (field.price || 0) * (fieldData.quantity || 0)
+          }
+        }
+      })
+    }
+
+    return total
+  }
+
+  // Update total price when relevant data changes
+  useEffect(() => {
+    setTotalPrice(calculateTotalPrice())
+  }, [selectedService, numberOfPeople, beachEquipment, customFieldsData])
 
   const fetchAvailableSlots = async (date: string) => {
     if (!selectedService || !date) return
@@ -266,6 +358,10 @@ export default function BookingPage() {
           customerEmail: customerData.email,
           customerPhone: `${customerData.phonePrefix} ${customerData.phone}`,
           notes: customerData.notes,
+          // Category-specific data
+          numberOfPeople: selectedService.category === 'RESTAURANT' || selectedService.category === 'BEACH' ? numberOfPeople : undefined,
+          beachEquipment: selectedService.category === 'BEACH' ? beachEquipment : undefined,
+          customFieldsData: customFieldsData.filter(f => f.selected).length > 0 ? customFieldsData.filter(f => f.selected) : undefined,
         }),
       })
 
@@ -535,7 +631,19 @@ export default function BookingPage() {
                             {service.duration} min
                           </div>
                           <p className="text-lg font-bold" style={{ color: brandColor }}>
-                            {formatCurrency(service.price)}
+                            {service.category === 'PROFESSIONAL' ? (
+                              service.price > 0 ? formatCurrency(service.price) : 'Prezzo variabile'
+                            ) : service.category === 'RESTAURANT' ? (
+                              service.restaurantConfig?.pricePerPerson > 0 
+                                ? `${formatCurrency(service.restaurantConfig.pricePerPerson)}/persona`
+                                : 'Prezzo variabile'
+                            ) : service.category === 'BEACH' ? (
+                              service.beachConfig?.pricePerPerson > 0
+                                ? `Da ${formatCurrency(service.beachConfig.pricePerPerson)}/persona`
+                                : 'Prezzo variabile'
+                            ) : (
+                              formatCurrency(service.price)
+                            )}
                           </p>
                         </div>
                       </div>
@@ -545,6 +653,341 @@ export default function BookingPage() {
               ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Step: Select Number of People (Restaurant) */}
+        {step === 'people' && (
+          <div>
+            <Button variant="ghost" onClick={() => setStep('service')} className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Indietro
+            </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Quante persone sarete?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <Label className="text-base">Numero di Persone</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    {Array.from({ length: selectedService?.restaurantConfig?.maxPeople || 10 }, (_, i) => i + 1).map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setNumberOfPeople(num)}
+                        className={`p-4 border-2 rounded-lg font-semibold transition-all ${
+                          numberOfPeople === num
+                            ? 'border-blue-600 bg-blue-50 text-blue-600'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                        style={numberOfPeople === num ? { borderColor: brandColor, backgroundColor: `${brandColor}10`, color: brandColor } : {}}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom Fields */}
+                {selectedService?.restaurantConfig?.customFields?.length > 0 && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <Label className="text-base">Opzioni Aggiuntive</Label>
+                    {selectedService.restaurantConfig.customFields.map((field: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium">{field.name}</p>
+                          {field.price > 0 && (
+                            <p className="text-sm text-gray-600">
+                              {field.type === 'checkbox' ? formatCurrency(field.price) : `${formatCurrency(field.price)} cad.`}
+                            </p>
+                          )}
+                        </div>
+                        {field.type === 'checkbox' ? (
+                          <input
+                            type="checkbox"
+                            checked={customFieldsData.find(f => f.name === field.name)?.selected || false}
+                            onChange={(e) => {
+                              const existing = customFieldsData.find(f => f.name === field.name)
+                              if (existing) {
+                                setCustomFieldsData(customFieldsData.map(f => 
+                                  f.name === field.name ? { ...f, selected: e.target.checked } : f
+                                ))
+                              } else {
+                                setCustomFieldsData([...customFieldsData, { name: field.name, selected: e.target.checked }])
+                              }
+                            }}
+                            className="w-5 h-5"
+                          />
+                        ) : (
+                          <Input
+                            type="number"
+                            min="0"
+                            value={customFieldsData.find(f => f.name === field.name)?.quantity || 0}
+                            onChange={(e) => {
+                              const existing = customFieldsData.find(f => f.name === field.name)
+                              const quantity = parseInt(e.target.value) || 0
+                              if (existing) {
+                                setCustomFieldsData(customFieldsData.map(f => 
+                                  f.name === field.name ? { ...f, quantity, selected: quantity > 0 } : f
+                                ))
+                              } else {
+                                setCustomFieldsData([...customFieldsData, { name: field.name, quantity, selected: quantity > 0 }])
+                              }
+                            }}
+                            className="w-20"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Total Price */}
+                {totalPrice > 0 && (
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center text-lg font-bold">
+                      <span>Totale:</span>
+                      <span style={{ color: brandColor }}>{formatCurrency(totalPrice)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={() => setStep('datetime')} 
+                  className="w-full"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  Continua
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Step: Select Equipment (Beach) */}
+        {step === 'equipment' && (
+          <div>
+            <Button variant="ghost" onClick={() => setStep('service')} className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Indietro
+            </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Seleziona Attrezzatura</CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  L&apos;attrezzatura è opzionale. Puoi prenotare solo l&apos;ingresso per le persone.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Numero persone */}
+                <div className="space-y-2">
+                  <Label>Numero di Persone</Label>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNumberOfPeople(Math.max(1, numberOfPeople - 1))}
+                    >
+                      -
+                    </Button>
+                    <span className="text-2xl font-bold w-12 text-center">{numberOfPeople}</span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNumberOfPeople(numberOfPeople + 1)}
+                    >
+                      +
+                    </Button>
+                    {selectedService?.beachConfig?.pricePerPerson > 0 && (
+                      <span className="text-sm text-gray-600">
+                        {formatCurrency(selectedService.beachConfig.pricePerPerson)}/persona
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {selectedService?.beachConfig?.umbrellas?.available && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Ombrelloni</Label>
+                      {selectedService.beachConfig.umbrellas.price > 0 && (
+                        <span className="text-sm text-gray-600">{formatCurrency(selectedService.beachConfig.umbrellas.price)} cad.</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, umbrellas: Math.max(0, prev.umbrellas - 1) }))}
+                        disabled={beachEquipment.umbrellas === 0}
+                      >
+                        -
+                      </Button>
+                      <span className="text-2xl font-bold w-12 text-center">{beachEquipment.umbrellas}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, umbrellas: Math.min(selectedService.beachConfig.umbrellas.max, prev.umbrellas + 1) }))}
+                        disabled={beachEquipment.umbrellas >= selectedService.beachConfig.umbrellas.max}
+                      >
+                        +
+                      </Button>
+                      <span className="text-sm text-gray-500">Max: {selectedService.beachConfig.umbrellas.max}</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedService?.beachConfig?.sunbeds?.available && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Lettini</Label>
+                      {selectedService.beachConfig.sunbeds.price > 0 && (
+                        <span className="text-sm text-gray-600">{formatCurrency(selectedService.beachConfig.sunbeds.price)} cad.</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, sunbeds: Math.max(0, prev.sunbeds - 1) }))}
+                        disabled={beachEquipment.sunbeds === 0}
+                      >
+                        -
+                      </Button>
+                      <span className="text-2xl font-bold w-12 text-center">{beachEquipment.sunbeds}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, sunbeds: Math.min(selectedService.beachConfig.sunbeds.max, prev.sunbeds + 1) }))}
+                        disabled={beachEquipment.sunbeds >= selectedService.beachConfig.sunbeds.max}
+                      >
+                        +
+                      </Button>
+                      <span className="text-sm text-gray-500">Max: {selectedService.beachConfig.sunbeds.max}</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedService?.beachConfig?.deckchairs?.available && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Sdraio</Label>
+                      {selectedService.beachConfig.deckchairs.price > 0 && (
+                        <span className="text-sm text-gray-600">{formatCurrency(selectedService.beachConfig.deckchairs.price)} cad.</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, deckchairs: Math.max(0, prev.deckchairs - 1) }))}
+                        disabled={beachEquipment.deckchairs === 0}
+                      >
+                        -
+                      </Button>
+                      <span className="text-2xl font-bold w-12 text-center">{beachEquipment.deckchairs}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setBeachEquipment(prev => ({ ...prev, deckchairs: Math.min(selectedService.beachConfig.deckchairs.max, prev.deckchairs + 1) }))}
+                        disabled={beachEquipment.deckchairs >= selectedService.beachConfig.deckchairs.max}
+                      >
+                        +
+                      </Button>
+                      <span className="text-sm text-gray-500">Max: {selectedService.beachConfig.deckchairs.max}</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedService?.hasRestaurantOption && (
+                  <div className="flex items-center gap-2 pt-4 border-t">
+                    <input
+                      type="checkbox"
+                      id="withRestaurant"
+                      checked={beachEquipment.withRestaurant}
+                      onChange={(e) => setBeachEquipment(prev => ({ ...prev, withRestaurant: e.target.checked }))}
+                      className="w-4 h-4"
+                    />
+                    <Label htmlFor="withRestaurant" className="cursor-pointer">Vuoi anche mangiare?</Label>
+                  </div>
+                )}
+
+                {/* Custom Fields */}
+                {selectedService?.beachConfig?.customFields?.length > 0 && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <Label className="text-base">Opzioni Aggiuntive</Label>
+                    {selectedService.beachConfig.customFields.map((field: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium">{field.name}</p>
+                          {field.price > 0 && (
+                            <p className="text-sm text-gray-600">
+                              {field.type === 'checkbox' ? formatCurrency(field.price) : `${formatCurrency(field.price)} cad.`}
+                            </p>
+                          )}
+                        </div>
+                        {field.type === 'checkbox' ? (
+                          <input
+                            type="checkbox"
+                            checked={customFieldsData.find(f => f.name === field.name)?.selected || false}
+                            onChange={(e) => {
+                              const existing = customFieldsData.find(f => f.name === field.name)
+                              if (existing) {
+                                setCustomFieldsData(customFieldsData.map(f => 
+                                  f.name === field.name ? { ...f, selected: e.target.checked } : f
+                                ))
+                              } else {
+                                setCustomFieldsData([...customFieldsData, { name: field.name, selected: e.target.checked }])
+                              }
+                            }}
+                            className="w-5 h-5"
+                          />
+                        ) : (
+                          <Input
+                            type="number"
+                            min="0"
+                            value={customFieldsData.find(f => f.name === field.name)?.quantity || 0}
+                            onChange={(e) => {
+                              const existing = customFieldsData.find(f => f.name === field.name)
+                              const quantity = parseInt(e.target.value) || 0
+                              if (existing) {
+                                setCustomFieldsData(customFieldsData.map(f => 
+                                  f.name === field.name ? { ...f, quantity, selected: quantity > 0 } : f
+                                ))
+                              } else {
+                                setCustomFieldsData([...customFieldsData, { name: field.name, quantity, selected: quantity > 0 }])
+                              }
+                            }}
+                            className="w-20"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Total Price */}
+                {totalPrice > 0 && (
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center text-lg font-bold">
+                      <span>Totale:</span>
+                      <span style={{ color: brandColor }}>{formatCurrency(totalPrice)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={() => setStep('datetime')} 
+                  className="w-full"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  Continua
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -793,7 +1236,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between pt-2 border-t">
                       <span className="text-gray-600">Totale:</span>
-                      <span className="font-bold text-lg">{formatCurrency(selectedService.price)}</span>
+                      <span className="font-bold text-lg">{totalPrice > 0 ? formatCurrency(totalPrice) : 'Prezzo variabile'}</span>
                     </div>
                   </div>
                 </div>
@@ -829,7 +1272,7 @@ export default function BookingPage() {
                   <div>
                     <p className="text-xs text-gray-500 uppercase">Servizio</p>
                     <p className="font-semibold text-gray-900">{selectedService.name}</p>
-                    <p className="text-sm text-gray-600">{selectedService.duration} minuti - {formatCurrency(selectedService.price)}</p>
+                    <p className="text-sm text-gray-600">{selectedService.duration} minuti</p>
                   </div>
 
                   {selectedStaff && (
@@ -859,7 +1302,7 @@ export default function BookingPage() {
                     <div className="flex justify-between items-center">
                       <p className="text-sm font-medium text-gray-700">Totale</p>
                       <p className="text-2xl font-bold" style={{ color: brandColor }}>
-                        {formatCurrency(selectedService.price)}
+                        {totalPrice > 0 ? formatCurrency(totalPrice) : 'Prezzo variabile'}
                       </p>
                     </div>
                   </div>

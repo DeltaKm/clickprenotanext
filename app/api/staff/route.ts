@@ -74,19 +74,14 @@ export async function POST(request: NextRequest) {
     const { email, password, name, bio, avatar } = validation.data
     const serviceIds = body.serviceIds || []
 
-    // Check if user already exists
+    // Check if user already exists (email is now unique globally)
     const existingUser = await prisma.user.findUnique({
-      where: {
-        tenantId_email: {
-          tenantId: context.tenant.id,
-          email,
-        },
-      },
+      where: { email },
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'Email già in uso' },
         { status: 409 }
       )
     }

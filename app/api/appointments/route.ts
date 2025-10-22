@@ -276,8 +276,64 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Calculate total price based on service category
+    let totalPrice = 0
+    
+    if (service.category === 'PROFESSIONAL') {
+      totalPrice = service.price || 0
+    } else if (service.category === 'RESTAURANT') {
+      const config = service.restaurantConfig as any
+      const pricePerPerson = config?.pricePerPerson || 0
+      totalPrice = pricePerPerson * (data.numberOfPeople || 1)
+      
+      // Add custom fields
+      if (data.customFieldsData && Array.isArray(data.customFieldsData)) {
+        data.customFieldsData.forEach((fieldData: any) => {
+          const field = config?.customFields?.find((f: any) => f.name === fieldData.name)
+          if (field && fieldData.selected) {
+            if (field.type === 'checkbox') {
+              totalPrice += field.price || 0
+            } else if (field.type === 'quantity') {
+              totalPrice += (field.price || 0) * (fieldData.quantity || 0)
+            }
+          }
+        })
+      }
+    } else if (service.category === 'BEACH') {
+      const config = service.beachConfig as any
+      const pricePerPerson = config?.pricePerPerson || 0
+      totalPrice = pricePerPerson * (data.numberOfPeople || 1)
+      
+      // Add equipment prices
+      if (data.beachEquipment) {
+        const equipment = data.beachEquipment as any
+        if (config?.umbrellas?.price) {
+          totalPrice += (config.umbrellas.price || 0) * (equipment.umbrellas || 0)
+        }
+        if (config?.sunbeds?.price) {
+          totalPrice += (config.sunbeds.price || 0) * (equipment.sunbeds || 0)
+        }
+        if (config?.deckchairs?.price) {
+          totalPrice += (config.deckchairs.price || 0) * (equipment.deckchairs || 0)
+        }
+      }
+      
+      // Add custom fields
+      if (data.customFieldsData && Array.isArray(data.customFieldsData)) {
+        data.customFieldsData.forEach((fieldData: any) => {
+          const field = config?.customFields?.find((f: any) => f.name === fieldData.name)
+          if (field && fieldData.selected) {
+            if (field.type === 'checkbox') {
+              totalPrice += field.price || 0
+            } else if (field.type === 'quantity') {
+              totalPrice += (field.price || 0) * (fieldData.quantity || 0)
+            }
+          }
+        })
+      }
+    }
+    
     // Apply coupon if provided
-    let totalPrice = service.price
     let couponId = null
 
     if (data.couponCode) {
@@ -325,6 +381,10 @@ export async function POST(request: NextRequest) {
         totalPrice,
         couponId,
         status: AppointmentStatus.PENDING,
+        // Category-specific data
+        numberOfPeople: data.numberOfPeople,
+        beachEquipment: data.beachEquipment,
+        customFieldsData: data.customFieldsData,
       },
       include: {
         customer: true,

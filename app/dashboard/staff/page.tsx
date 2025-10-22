@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 export default function StaffPage() {
   const [staff, setStaff] = useState<any[]>([])
@@ -13,6 +14,7 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; staffId: string | null; staffName: string }>({ open: false, staffId: null, staffName: '' })
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -157,12 +159,16 @@ export default function StaffPage() {
     setShowForm(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Sei sicuro di voler eliminare questo membro dello staff?')) return
+  const handleDeleteClick = (staffMember: any) => {
+    setDeleteDialog({ open: true, staffId: staffMember.id, staffName: staffMember.user.name })
+  }
+
+  const handleDelete = async () => {
+    if (!deleteDialog.staffId) return
     
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`/api/staff/${id}`, {
+      const response = await fetch(`/api/staff/${deleteDialog.staffId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -384,7 +390,7 @@ export default function StaffPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDelete(member.id)}
+                    onClick={() => handleDeleteClick(member)}
                     className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -409,6 +415,16 @@ export default function StaffPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={handleDelete}
+        title="Elimina Membro Staff"
+        description={`Sei sicuro di voler eliminare "${deleteDialog.staffName}" dallo staff? Questa azione non può essere annullata.`}
+        confirmText="Elimina"
+        cancelText="Annulla"
+      />
     </div>
   )
 }

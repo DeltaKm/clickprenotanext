@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
     const service = await prisma.service.create({
       data: {
         ...validation.data,
+        price: validation.data.price ?? 0,
         tenantId: context.tenant.id,
       },
     })

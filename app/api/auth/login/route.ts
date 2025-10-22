@@ -18,63 +18,31 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = validation.data
 
-    // Check if this is a super admin or admin login
-    const adminUser = await prisma.user.findFirst({
-      where: {
-        email,
-        role: { in: ['SUPER_ADMIN', 'ADMIN'] },
-      },
+    // Find user by email (now unique globally)
+    const user = await prisma.user.findUnique({
+      where: { email },
       include: {
         tenant: true,
       },
     })
 
-    let user
-    let tenant
-
-    if (adminUser) {
-      // Super admin or Admin login
-      user = adminUser
-      tenant = adminUser.tenant
-    } else {
-      // Regular tenant-based login
-      // Try to find user by email across all tenants
-      const foundUser = await prisma.user.findFirst({
-        where: {
-          email,
-          role: { notIn: ['SUPER_ADMIN', 'ADMIN'] }, // Exclude admin users
-        },
-        include: {
-          tenant: true,
-        },
-      })
-
-      if (!foundUser || !foundUser.isActive) {
-        return NextResponse.json(
-          { error: 'Invalid credentials' },
-          { status: 401 }
-        )
-      }
-
-      // Check if tenant is active
-      if (!foundUser.tenant || !foundUser.tenant.isActive) {
-        return NextResponse.json(
-          { error: 'Invalid credentials' },
-          { status: 401 }
-        )
-      }
-
-      user = foundUser
-      tenant = foundUser.tenant
-    }
-
-    // Final check: ensure we have both user and tenant
-    if (!user || !tenant) {
+    // Check if user exists and is active
+    if (!user || !user.isActive) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
         { status: 401 }
       )
     }
+
+    // Check if tenant exists and is active
+    if (!user.tenant || !user.tenant.isActive) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      )
+    }
+
+    const tenant = user.tenant
 
     // Verify password
     const isValidPassword = await verifyPassword(password, user.passwordHash)

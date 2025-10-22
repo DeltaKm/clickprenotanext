@@ -37,8 +37,12 @@ export async function PUT(
     const updateData: any = {
       name: body.name,
       description: body.description,
+      category: body.category,
       duration: body.duration,
-      price: body.price,
+      price: body.price ?? 0,
+      restaurantConfig: body.restaurantConfig,
+      beachConfig: body.beachConfig,
+      hasRestaurantOption: body.hasRestaurantOption,
       availableDays: body.availableDays,
       startTime: body.startTime,
       endTime: body.endTime,

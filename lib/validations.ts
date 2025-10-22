@@ -30,8 +30,45 @@ export const createServiceSchema = z.object({
   name: z.string().min(2).max(100),
   description: z.string().max(500).optional(),
   duration: z.number().int().min(5).max(480), // 5 min to 8 hours
-  price: z.number().min(0),
+  price: z.number().min(0).nullable().optional(),
   currency: z.string().length(3).default('EUR'),
+  category: z.enum(['PROFESSIONAL', 'RESTAURANT', 'BEACH']).default('PROFESSIONAL'),
+  restaurantConfig: z.object({
+    minPeople: z.number().int().min(1),
+    maxPeople: z.number().int().min(1),
+    pricePerPerson: z.number().min(0).optional(),
+    customFields: z.array(z.object({
+      name: z.string(),
+      price: z.number().min(0),
+      type: z.enum(['checkbox', 'quantity']),
+      enabled: z.boolean(),
+    })).optional(),
+  }).optional().nullable(),
+  beachConfig: z.object({
+    pricePerPerson: z.number().min(0).optional(),
+    umbrellas: z.object({
+      available: z.boolean(),
+      max: z.number().int().min(1),
+      price: z.number().min(0).optional(),
+    }),
+    sunbeds: z.object({
+      available: z.boolean(),
+      max: z.number().int().min(1),
+      price: z.number().min(0).optional(),
+    }),
+    deckchairs: z.object({
+      available: z.boolean(),
+      max: z.number().int().min(1),
+      price: z.number().min(0).optional(),
+    }),
+    customFields: z.array(z.object({
+      name: z.string(),
+      price: z.number().min(0),
+      type: z.enum(['checkbox', 'quantity']),
+      enabled: z.boolean(),
+    })).optional(),
+  }).optional().nullable(),
+  hasRestaurantOption: z.boolean().default(false),
 })
 
 export const updateServiceSchema = createServiceSchema.partial().extend({
@@ -93,6 +130,19 @@ export const createAppointmentSchema = z.object({
   startTime: z.string().datetime(),
   notes: z.string().max(500).optional(),
   couponCode: z.string().optional(),
+  // Category-specific fields
+  numberOfPeople: z.number().int().min(1).optional(), // For restaurants and beach
+  beachEquipment: z.object({
+    umbrellas: z.number().int().min(0),
+    sunbeds: z.number().int().min(0),
+    deckchairs: z.number().int().min(0),
+    withRestaurant: z.boolean(),
+  }).optional(), // For beach
+  customFieldsData: z.array(z.object({
+    name: z.string(),
+    selected: z.boolean().optional(),
+    quantity: z.number().int().min(0).optional(),
+  })).optional(), // For custom fields
 }).refine(
   (data) => data.customerId || (data.customerEmail && data.customerName && data.customerPhone),
   {

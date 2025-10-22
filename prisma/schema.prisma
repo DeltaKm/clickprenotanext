@@ -58,7 +58,7 @@ enum UserRole {
 model User {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   tenantId     String   @db.ObjectId
-  email        String
+  email        String   @unique
   passwordHash String
   role         UserRole @default(CUSTOMER)
   name         String
@@ -71,7 +71,6 @@ model User {
   staff           Staff?
   licensePackages LicensePackage[]  // Admin's license packages
 
-  @@unique([tenantId, email])
   @@map("users")
 }
 
@@ -139,6 +138,12 @@ model WorkingHours {
 // SERVICES
 // ============================================
 
+enum ServiceCategory {
+  PROFESSIONAL  // Professionisti (parrucchieri, estetisti, etc.)
+  RESTAURANT    // Ristoranti e pizzerie
+  BEACH         // Stabilimenti balneari
+}
+
 model Service {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   tenantId    String   @db.ObjectId
@@ -148,6 +153,24 @@ model Service {
   price       Float
   currency    String   @default("EUR")
   isActive    Boolean  @default(true)
+  
+  // Service category
+  category    ServiceCategory @default(PROFESSIONAL)
+  
+  // Restaurant configuration
+  // {minPeople: 1, maxPeople: 10, pricePerPerson: 25, customFields: [{name: "Menu bambini", price: 15, type: "checkbox", enabled: true}]}
+  restaurantConfig Json?
+  
+  // Beach configuration
+  // {
+  //   pricePerPerson: 10,
+  //   umbrellas: {available: true, max: 5, price: 15},
+  //   sunbeds: {available: true, max: 10, price: 8},
+  //   deckchairs: {available: true, max: 10, price: 5},
+  //   customFields: [{name: "Cabina", price: 20, type: "quantity", enabled: true}]
+  // }
+  beachConfig Json?
+  hasRestaurantOption Boolean @default(false) // For beach: option to add restaurant service
   
   // Availability settings
   availableDays String[] @default(["1", "2", "3", "4", "5"]) // 0=Sunday, 1=Monday, etc.
@@ -231,6 +254,11 @@ model Appointment {
   notes      String?
   totalPrice Float
   couponId   String?           @db.ObjectId
+  
+  // Category-specific data
+  numberOfPeople Int? // For restaurants
+  beachEquipment Json? // For beach: {umbrellas: 2, sunbeds: 4, deckchairs: 0, withRestaurant: true}
+  customFieldsData Json? // For custom fields: [{name: "Cabina", quantity: 1, price: 20}] or [{name: "Menu bambini", selected: true, price: 15}]
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 

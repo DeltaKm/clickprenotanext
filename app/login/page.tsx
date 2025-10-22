@@ -116,16 +116,8 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm text-gray-500">
+            <div className="text-center text-sm text-gray-600 mt-4">
               Per richiedere un account, contatta l&apos;amministratore
-            </div>
-
-            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-900 font-medium mb-1">Demo Account:</p>
-              <p className="text-xs text-blue-700">
-                Email: owner@demo.com<br />
-                Password: password123
-              </p>
             </div>
           </CardContent>
         </Card>

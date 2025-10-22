@@ -1,30 +1,88 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Briefcase, Plus, Clock, Edit, Trash2, Calendar } from 'lucide-react'
+import { Briefcase, Plus, Clock, Edit, Trash2, Calendar, X, UtensilsCrossed, Umbrella } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatCurrency } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; serviceId: string | null; serviceName: string }>({
+    open: false,
+    serviceId: null,
+    serviceName: '',
+  })
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     duration: '',
-    price: '',
+    price: '0',
+    category: 'PROFESSIONAL' as 'PROFESSIONAL' | 'RESTAURANT' | 'BEACH',
     availableDays: ['1', '2', '3', '4', '5'], // Lun-Ven default
     startTime: '09:00',
     endTime: '18:00',
     slotDuration: '30',
     closedDates: [] as Array<{ date: string; reason: string }>,
+    // Restaurant config
+    minPeople: '1',
+    maxPeople: '10',
+    pricePerPerson: '',
+    restaurantCustomFields: [] as Array<{ name: string; price: string; type: 'checkbox' | 'quantity'; enabled: boolean }>,
+    // Beach config
+    beachPricePerPerson: '',
+    hasUmbrellas: true,
+    maxUmbrellas: '20',
+    priceUmbrellas: '',
+    hasSunbeds: true,
+    maxSunbeds: '40',
+    priceSunbeds: '',
+    hasDeckchairs: true,
+    maxDeckchairs: '20',
+    priceDeckchairs: '',
+    hasRestaurantOption: false,
+    beachCustomFields: [] as Array<{ name: string; price: string; type: 'checkbox' | 'quantity'; enabled: boolean }>,
   })
   const [newClosedDate, setNewClosedDate] = useState({ date: '', reason: '' })
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      duration: '',
+      price: '',
+      category: 'PROFESSIONAL',
+      availableDays: ['1', '2', '3', '4', '5'],
+      startTime: '09:00',
+      endTime: '18:00',
+      slotDuration: '30',
+      closedDates: [],
+      minPeople: '1',
+      maxPeople: '10',
+      pricePerPerson: '',
+      restaurantCustomFields: [],
+      beachPricePerPerson: '',
+      hasUmbrellas: true,
+      maxUmbrellas: '20',
+      priceUmbrellas: '',
+      hasSunbeds: true,
+      maxSunbeds: '40',
+      priceSunbeds: '',
+      hasDeckchairs: true,
+      maxDeckchairs: '20',
+      priceDeckchairs: '',
+      hasRestaurantOption: false,
+      beachCustomFields: [],
+    })
+  }
 
   const daysOfWeek = [
     { value: '0', label: 'Domenica' },
@@ -42,6 +100,54 @@ export default function ServicesPage() {
       availableDays: prev.availableDays.includes(day)
         ? prev.availableDays.filter(d => d !== day)
         : [...prev.availableDays, day]
+    }))
+  }
+
+  // Restaurant custom fields
+  const addRestaurantCustomField = () => {
+    setFormData(prev => ({
+      ...prev,
+      restaurantCustomFields: [...prev.restaurantCustomFields, { name: '', price: '', type: 'checkbox', enabled: true }]
+    }))
+  }
+
+  const updateRestaurantCustomField = (index: number, field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      restaurantCustomFields: prev.restaurantCustomFields.map((f, i) => 
+        i === index ? { ...f, [field]: value } : f
+      )
+    }))
+  }
+
+  const removeRestaurantCustomField = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      restaurantCustomFields: prev.restaurantCustomFields.filter((_, i) => i !== index)
+    }))
+  }
+
+  // Beach custom fields
+  const addBeachCustomField = () => {
+    setFormData(prev => ({
+      ...prev,
+      beachCustomFields: [...prev.beachCustomFields, { name: '', price: '', type: 'checkbox', enabled: true }]
+    }))
+  }
+
+  const updateBeachCustomField = (index: number, field: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      beachCustomFields: prev.beachCustomFields.map((f, i) => 
+        i === index ? { ...f, [field]: value } : f
+      )
+    }))
+  }
+
+  const removeBeachCustomField = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      beachCustomFields: prev.beachCustomFields.filter((_, i) => i !== index)
     }))
   }
 
@@ -87,58 +193,135 @@ export default function ServicesPage() {
           name: formData.name,
           description: formData.description,
           duration: parseInt(formData.duration),
-          price: parseFloat(formData.price),
+          price: formData.price ? parseFloat(formData.price) : 0,
+          category: formData.category,
           availableDays: formData.availableDays,
           startTime: formData.startTime,
           endTime: formData.endTime,
           slotDuration: parseInt(formData.slotDuration),
           closedDates: formData.closedDates,
+          // Restaurant config
+          restaurantConfig: formData.category === 'RESTAURANT' ? {
+            minPeople: parseInt(formData.minPeople),
+            maxPeople: parseInt(formData.maxPeople),
+            pricePerPerson: formData.pricePerPerson ? parseFloat(formData.pricePerPerson) : 0,
+            customFields: formData.restaurantCustomFields.map(f => ({
+              name: f.name,
+              price: parseFloat(f.price) || 0,
+              type: f.type,
+              enabled: f.enabled,
+            })),
+          } : null,
+          // Beach config
+          beachConfig: formData.category === 'BEACH' ? {
+            pricePerPerson: formData.beachPricePerPerson ? parseFloat(formData.beachPricePerPerson) : 0,
+            umbrellas: { 
+              available: formData.hasUmbrellas, 
+              max: parseInt(formData.maxUmbrellas),
+              price: formData.priceUmbrellas ? parseFloat(formData.priceUmbrellas) : 0,
+            },
+            sunbeds: { 
+              available: formData.hasSunbeds, 
+              max: parseInt(formData.maxSunbeds),
+              price: formData.priceSunbeds ? parseFloat(formData.priceSunbeds) : 0,
+            },
+            deckchairs: { 
+              available: formData.hasDeckchairs, 
+              max: parseInt(formData.maxDeckchairs),
+              price: formData.priceDeckchairs ? parseFloat(formData.priceDeckchairs) : 0,
+            },
+            customFields: formData.beachCustomFields.map(f => ({
+              name: f.name,
+              price: parseFloat(f.price) || 0,
+              type: f.type,
+              enabled: f.enabled,
+            })),
+          } : null,
+          hasRestaurantOption: formData.category === 'BEACH' ? formData.hasRestaurantOption : false,
         }),
       })
 
       if (response.ok) {
-        setFormData({ 
-          name: '', 
-          description: '', 
-          duration: '', 
-          price: '',
-          availableDays: ['1', '2', '3', '4', '5'],
-          startTime: '09:00',
-          endTime: '18:00',
-          slotDuration: '30',
-          closedDates: [],
-        })
+        resetForm()
         setShowForm(false)
         setEditingId(null)
+        setErrorMessage('')
         fetchServices()
+      } else {
+        const errorData = await response.json()
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const errors = errorData.details.map((err: any) => {
+            if (err.path.includes('duration')) {
+              return 'Durata non valida (minimo 5 minuti, massimo 480 minuti - 8 ore)'
+            }
+            if (err.path.includes('price')) {
+              return 'Prezzo non valido'
+            }
+            if (err.path.includes('name')) {
+              return 'Nome servizio richiesto (minimo 2 caratteri)'
+            }
+            return err.message
+          }).join('. ')
+          setErrorMessage(errors)
+        } else {
+          setErrorMessage(errorData.error || 'Errore durante il salvataggio del servizio')
+        }
       }
     } catch (error) {
       console.error('Error saving service:', error)
+      setErrorMessage('Errore di connessione. Riprova.')
     }
   }
 
   const handleEdit = (service: any) => {
     setEditingId(service.id)
+    const restaurantConfig = service.restaurantConfig || {}
+    const beachConfig = service.beachConfig || {}
     setFormData({
       name: service.name,
       description: service.description || '',
       duration: service.duration.toString(),
       price: service.price.toString(),
+      category: service.category || 'PROFESSIONAL',
       availableDays: service.availableDays || ['1', '2', '3', '4', '5'],
       startTime: service.startTime || '09:00',
       endTime: service.endTime || '18:00',
       slotDuration: (service.slotDuration || 30).toString(),
       closedDates: service.closedDates || [],
+      minPeople: (restaurantConfig.minPeople || 1).toString(),
+      maxPeople: (restaurantConfig.maxPeople || 10).toString(),
+      pricePerPerson: (restaurantConfig.pricePerPerson || '').toString(),
+      restaurantCustomFields: restaurantConfig.customFields || [],
+      beachPricePerPerson: (beachConfig.pricePerPerson || '').toString(),
+      hasUmbrellas: beachConfig.umbrellas?.available ?? true,
+      maxUmbrellas: (beachConfig.umbrellas?.max || 20).toString(),
+      priceUmbrellas: (beachConfig.umbrellas?.price || '').toString(),
+      hasSunbeds: beachConfig.sunbeds?.available ?? true,
+      maxSunbeds: (beachConfig.sunbeds?.max || 40).toString(),
+      priceSunbeds: (beachConfig.sunbeds?.price || '').toString(),
+      hasDeckchairs: beachConfig.deckchairs?.available ?? true,
+      maxDeckchairs: (beachConfig.deckchairs?.max || 20).toString(),
+      priceDeckchairs: (beachConfig.deckchairs?.price || '').toString(),
+      hasRestaurantOption: service.hasRestaurantOption || false,
+      beachCustomFields: beachConfig.customFields || [],
     })
     setShowForm(true)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Sei sicuro di voler eliminare questo servizio?')) return
+  const handleDeleteClick = (service: any) => {
+    setDeleteDialog({
+      open: true,
+      serviceId: service.id,
+      serviceName: service.name,
+    })
+  }
+
+  const handleDelete = async () => {
+    if (!deleteDialog.serviceId) return
     
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`/api/services/${id}`, {
+      const response = await fetch(`/api/services/${deleteDialog.serviceId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,17 +353,28 @@ export default function ServicesPage() {
         </div>
         <Button onClick={() => {
           setEditingId(null)
-          setFormData({
+          resetForm()
+          /*setFormData({
             name: '',
             description: '',
             duration: '',
             price: '',
+            category: 'PROFESSIONAL',
             availableDays: ['1', '2', '3', '4', '5'],
             startTime: '09:00',
             endTime: '18:00',
             slotDuration: '30',
             closedDates: [],
-          })
+            minPeople: '1',
+            maxPeople: '10',
+            hasUmbrellas: true,
+            maxUmbrellas: '20',
+            hasSunbeds: true,
+            maxSunbeds: '40',
+            hasDeckchairs: true,
+            maxDeckchairs: '20',
+            hasRestaurantOption: false,
+          })*/
           setShowForm(!showForm)
         }}>
           <Plus className="h-4 w-4 mr-2" />
@@ -196,7 +390,46 @@ export default function ServicesPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                  <p className="text-sm">{errorMessage}</p>
+                </div>
+              )}
+              
+              {/* Category Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="category">Tipologia Servizio</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData({ ...formData, category: value as any })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Seleziona una tipologia" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PROFESSIONAL">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="h-4 w-4 text-purple-600" />
+                        <span>Professionisti (Parrucchieri, Estetisti, ecc.)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="RESTAURANT">
+                      <div className="flex items-center gap-2">
+                        <UtensilsCrossed className="h-4 w-4 text-orange-600" />
+                        <span>Ristorazione (Ristoranti, Pizzerie)</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="BEACH">
+                      <div className="flex items-center gap-2">
+                        <Umbrella className="h-4 w-4 text-blue-600" />
+                        <span>Stabilimento Balneare</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome Servizio</Label>
                   <Input
@@ -206,17 +439,24 @@ export default function ServicesPage() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Prezzo (€)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    required
-                  />
-                </div>
+                {/* Mostra prezzo solo per PROFESSIONAL */}
+                {formData.category === 'PROFESSIONAL' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="price">
+                      Prezzo (€)
+                      <span className="text-sm text-gray-500 ml-2">(Lascia 0 per &quot;Da concordare&quot;)</span>
+                    </Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -238,6 +478,290 @@ export default function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
               </div>
+
+              {/* Restaurant Configuration */}
+              {formData.category === 'RESTAURANT' && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-4">Configurazione Ristorante</h3>
+                  
+                  {/* Prezzo per persona */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="pricePerPerson">
+                      Prezzo per Persona (€) 
+                      <span className="text-sm text-gray-500 ml-2">(Lascia 0 per &quot;Prezzo da concordare&quot;)</span>
+                    </Label>
+                    <Input
+                      id="pricePerPerson"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.pricePerPerson}
+                      onChange={(e) => setFormData({ ...formData, pricePerPerson: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="minPeople">Numero Minimo Persone</Label>
+                      <Input
+                        id="minPeople"
+                        type="number"
+                        min="1"
+                        value={formData.minPeople}
+                        onChange={(e) => setFormData({ ...formData, minPeople: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="maxPeople">Numero Massimo Persone</Label>
+                      <Input
+                        id="maxPeople"
+                        type="number"
+                        min="1"
+                        value={formData.maxPeople}
+                        onChange={(e) => setFormData({ ...formData, maxPeople: e.target.value })}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Custom Fields */}
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-sm font-semibold">Campi Personalizzati (opzionali)</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={addRestaurantCustomField}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Aggiungi Campo
+                      </Button>
+                    </div>
+                    {formData.restaurantCustomFields.map((field, index) => (
+                      <div key={index} className="flex gap-2 mb-2">
+                        <Input
+                          placeholder="Nome (es: Menu bambini)"
+                          value={field.name}
+                          onChange={(e) => updateRestaurantCustomField(index, 'name', e.target.value)}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Prezzo €"
+                          value={field.price}
+                          onChange={(e) => updateRestaurantCustomField(index, 'price', e.target.value)}
+                          className="w-28"
+                        />
+                        <select
+                          value={field.type}
+                          onChange={(e) => updateRestaurantCustomField(index, 'type', e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                        >
+                          <option value="checkbox">Sì/No</option>
+                          <option value="quantity">Quantità</option>
+                        </select>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => removeRestaurantCustomField(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Beach Configuration */}
+              {formData.category === 'BEACH' && (
+                <div className="border-t pt-4 mt-4">
+                  <h3 className="font-semibold text-gray-900 mb-4">Configurazione Stabilimento</h3>
+                  
+                  {/* Prezzo per persona */}
+                  <div className="space-y-2 mb-4">
+                    <Label htmlFor="beachPricePerPerson">
+                      Prezzo per Persona (€)
+                      <span className="text-sm text-gray-500 ml-2">(Lascia 0 per &quot;Prezzo da concordare&quot;)</span>
+                    </Label>
+                    <Input
+                      id="beachPricePerPerson"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.beachPricePerPerson}
+                      onChange={(e) => setFormData({ ...formData, beachPricePerPerson: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="hasUmbrellas"
+                        checked={formData.hasUmbrellas}
+                        onChange={(e) => setFormData({ ...formData, hasUmbrellas: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="hasUmbrellas" className="flex-1">Ombrelloni disponibili</Label>
+                      {formData.hasUmbrellas && (
+                        <>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={formData.maxUmbrellas}
+                            onChange={(e) => setFormData({ ...formData, maxUmbrellas: e.target.value })}
+                            className="w-20"
+                            placeholder="Max"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.priceUmbrellas}
+                            onChange={(e) => setFormData({ ...formData, priceUmbrellas: e.target.value })}
+                            className="w-24"
+                            placeholder="Prezzo €"
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="hasSunbeds"
+                        checked={formData.hasSunbeds}
+                        onChange={(e) => setFormData({ ...formData, hasSunbeds: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="hasSunbeds" className="flex-1">Lettini disponibili</Label>
+                      {formData.hasSunbeds && (
+                        <>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={formData.maxSunbeds}
+                            onChange={(e) => setFormData({ ...formData, maxSunbeds: e.target.value })}
+                            className="w-20"
+                            placeholder="Max"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.priceSunbeds}
+                            onChange={(e) => setFormData({ ...formData, priceSunbeds: e.target.value })}
+                            className="w-24"
+                            placeholder="Prezzo €"
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="hasDeckchairs"
+                        checked={formData.hasDeckchairs}
+                        onChange={(e) => setFormData({ ...formData, hasDeckchairs: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="hasDeckchairs" className="flex-1">Sdraio disponibili</Label>
+                      {formData.hasDeckchairs && (
+                        <>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={formData.maxDeckchairs}
+                            onChange={(e) => setFormData({ ...formData, maxDeckchairs: e.target.value })}
+                            className="w-20"
+                            placeholder="Max"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={formData.priceDeckchairs}
+                            onChange={(e) => setFormData({ ...formData, priceDeckchairs: e.target.value })}
+                            className="w-24"
+                            placeholder="Prezzo €"
+                          />
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <input
+                        type="checkbox"
+                        id="hasRestaurantOption"
+                        checked={formData.hasRestaurantOption}
+                        onChange={(e) => setFormData({ ...formData, hasRestaurantOption: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="hasRestaurantOption">Offri anche servizio ristorazione</Label>
+                    </div>
+
+                    {/* Custom Fields */}
+                    <div className="mt-4 pt-4 border-t">
+                      <div className="flex items-center justify-between mb-3">
+                        <Label className="text-sm font-semibold">Campi Personalizzati (opzionali)</Label>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={addBeachCustomField}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Aggiungi Campo
+                        </Button>
+                      </div>
+                      {formData.beachCustomFields.map((field, index) => (
+                        <div key={index} className="flex gap-2 mb-2">
+                          <Input
+                            placeholder="Nome (es: Cabina, Gazebo)"
+                            value={field.name}
+                            onChange={(e) => updateBeachCustomField(index, 'name', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="Prezzo €"
+                            value={field.price}
+                            onChange={(e) => updateBeachCustomField(index, 'price', e.target.value)}
+                            className="w-28"
+                          />
+                          <select
+                            value={field.type}
+                            onChange={(e) => updateBeachCustomField(index, 'type', e.target.value)}
+                            className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          >
+                            <option value="checkbox">Sì/No</option>
+                            <option value="quantity">Quantità</option>
+                          </select>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => removeBeachCustomField(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Availability Settings */}
               <div className="border-t pt-4 mt-4">
@@ -425,16 +949,37 @@ export default function ServicesPage() {
           <Card key={service.id}>
             <CardContent className="pt-6">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Briefcase className="h-6 w-6 text-blue-600" />
-                </div>
-                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                  service.isActive 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                  service.category === 'RESTAURANT' ? 'bg-orange-100' :
+                  service.category === 'BEACH' ? 'bg-blue-100' :
+                  'bg-purple-100'
                 }`}>
-                  {service.isActive ? 'Attivo' : 'Inattivo'}
-                </span>
+                  {service.category === 'RESTAURANT' ? (
+                    <UtensilsCrossed className={`h-6 w-6 ${service.category === 'RESTAURANT' ? 'text-orange-600' : ''}`} />
+                  ) : service.category === 'BEACH' ? (
+                    <Umbrella className="h-6 w-6 text-blue-600" />
+                  ) : (
+                    <Briefcase className="h-6 w-6 text-purple-600" />
+                  )}
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    service.category === 'RESTAURANT' ? 'bg-orange-100 text-orange-800' :
+                    service.category === 'BEACH' ? 'bg-blue-100 text-blue-800' :
+                    'bg-purple-100 text-purple-800'
+                  }`}>
+                    {service.category === 'RESTAURANT' ? 'Ristorante' :
+                     service.category === 'BEACH' ? 'Stabilimento' :
+                     'Professionale'}
+                  </span>
+                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                    service.isActive 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {service.isActive ? 'Attivo' : 'Inattivo'}
+                  </span>
+                </div>
               </div>
 
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -453,9 +998,35 @@ export default function ServicesPage() {
                     <Clock className="h-4 w-4" />
                     {service.duration} min
                   </div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {formatCurrency(service.price)}
-                  </p>
+                  <div className="text-right">
+                    {service.category === 'PROFESSIONAL' ? (
+                      <p className="text-xl font-bold text-gray-900">
+                        {service.price > 0 ? formatCurrency(service.price) : 'Da concordare'}
+                      </p>
+                    ) : service.category === 'RESTAURANT' ? (
+                      <div>
+                        <p className="text-xs text-gray-500">Da</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {service.restaurantConfig?.pricePerPerson > 0 
+                            ? `${formatCurrency(service.restaurantConfig.pricePerPerson)}/pers`
+                            : 'Prezzo variabile'}
+                        </p>
+                      </div>
+                    ) : service.category === 'BEACH' ? (
+                      <div>
+                        <p className="text-xs text-gray-500">Da</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {service.beachConfig?.pricePerPerson > 0 
+                            ? `${formatCurrency(service.beachConfig.pricePerPerson)}/pers`
+                            : 'Prezzo variabile'}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-xl font-bold text-gray-900">
+                        {formatCurrency(service.price)}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex gap-2 pt-2">
@@ -471,7 +1042,7 @@ export default function ServicesPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleDelete(service.id)}
+                    onClick={() => handleDeleteClick(service)}
                     className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -496,6 +1067,16 @@ export default function ServicesPage() {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={handleDelete}
+        title="Elimina Servizio"
+        description={`Sei sicuro di voler eliminare il servizio "${deleteDialog.serviceName}"? Questa azione non può essere annullata.`}
+        confirmText="Elimina"
+        cancelText="Annulla"
+      />
     </div>
   )
 }

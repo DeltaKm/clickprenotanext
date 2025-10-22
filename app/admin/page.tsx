@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 interface LicenseInfo {
   total: number
@@ -60,8 +61,9 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [aziende, setAziende] = useState<Azienda[]>([])
   const [loading, setLoading] = useState(true)
-  const [showDialog, setShowDialog] = useState(false)
-  const [editingAzienda, setEditingAzienda] = useState<Azienda | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string | null; tenantName: string }>({ open: false, tenantId: null, tenantName: '' })
+  const [newTenantData, setNewTenantData] = useState<Azienda | null>(null)
   const [formData, setFormData] = useState({
     slug: '',
     name: '',
@@ -169,7 +171,7 @@ export default function AdminPage() {
   }
 
   const openCreateDialog = () => {
-    setEditingAzienda(null)
+    setNewTenantData(null)
     const firstPackage = stats?.licenses.packages.find(pkg => pkg.quantity > pkg.used)
     setFormData({
       slug: '',
@@ -181,11 +183,11 @@ export default function AdminPage() {
       packageId: firstPackage?.id || '', // Preseleziono primo pacchetto disponibile
       licenseQuantity: 1,
     })
-    setShowDialog(true)
+    setShowCreateModal(true)
   }
 
   const openEditDialog = (azienda: Azienda) => {
-    setEditingAzienda(azienda)
+    setNewTenantData(azienda)
     setFormData({
       slug: azienda.slug,
       name: azienda.name,
@@ -196,7 +198,7 @@ export default function AdminPage() {
       packageId: '', // Vuoto di default in modifica
       licenseQuantity: 1,
     })
-    setShowDialog(true)
+    setShowCreateModal(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,7 +215,7 @@ export default function AdminPage() {
 
       const token = localStorage.getItem('accessToken')
       
-      if (editingAzienda) {
+      if (newTenantData) {
         // Update existing tenant - tutti i campi
         const updateData: any = {
           slug: formData.slug,
@@ -233,7 +235,7 @@ export default function AdminPage() {
           updateData.licenseQuantity = formData.licenseQuantity
         }
 
-        const response = await fetch(`/api/admin/tenants/${editingAzienda.id}`, {
+        const response = await fetch(`/api/admin/tenants/${newTenantData.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -277,7 +279,7 @@ export default function AdminPage() {
         }
       }
 
-      setShowDialog(false)
+      setShowCreateModal(false)
       await loadAziende()
       await checkAuth()
     } catch (error: any) {
@@ -287,14 +289,16 @@ export default function AdminPage() {
     }
   }
 
-  const handleDelete = async (tenantId: string, aziendaName: string) => {
-    if (!confirm(`Sei sicuro di voler eliminare "${aziendaName}"? Questa azione eliminerà tutti i dati associati e non può essere annullata.`)) {
-      return
-    }
+  const handleDeleteClick = (tenant: any) => {
+    setDeleteDialog({ open: true, tenantId: tenant.id, tenantName: tenant.aziendaName })
+  }
+
+  const handleDelete = async () => {
+    if (!deleteDialog.tenantId) return
 
     try {
       const token = localStorage.getItem('accessToken')
-      const response = await fetch(`/api/admin/tenants?tenantId=${tenantId}`, {
+      const response = await fetch(`/api/admin/tenants/${deleteDialog.tenantId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -565,7 +569,7 @@ export default function AdminPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(azienda.id, azienda.name)}
+                        onClick={() => handleDeleteClick(azienda)}
                         className="w-10 sm:w-auto"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -586,14 +590,14 @@ export default function AdminPage() {
       </div>
 
       {/* Dialog per Creare/Modificare Azienda */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingAzienda ? 'Modifica Azienda' : 'Nuova Azienda'}
+              {newTenantData ? 'Modifica Azienda' : 'Nuova Azienda'}
             </DialogTitle>
             <DialogDescription>
-              {editingAzienda 
+              {newTenantData 
                 ? 'Modifica i dettagli dell\'azienda' 
                 : 'Crea una nuova azienda con il suo owner'}
             </DialogDescription>
@@ -657,9 +661,9 @@ export default function AdminPage() {
                 type="password"
                 value={formData.ownerPassword}
                 onChange={(e) => setFormData({ ...formData, ownerPassword: e.target.value })}
-                placeholder={editingAzienda ? "Lascia vuoto per non modificare" : "Minimo 8 caratteri"}
+                placeholder={newTenantData ? "Lascia vuoto per non modificare" : "Minimo 8 caratteri"}
                 className="placeholder:text-xs"
-                required={!editingAzienda}
+                required={!newTenantData}
                 minLength={8}
               />
             </div>
@@ -672,7 +676,7 @@ export default function AdminPage() {
                 value={formData.confirmPassword}
                 onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 placeholder="Ripeti la password"
-                required={!editingAzienda || !!formData.ownerPassword}
+                required={!newTenantData || !!formData.ownerPassword}
                 minLength={8}
               />
             </div>
@@ -690,7 +694,7 @@ export default function AdminPage() {
                     className="w-full px-3 py-2 border rounded-md"
                   >
                     <option value="">
-                      {editingAzienda ? 'Non aggiungere licenze' : 'Nessuna licenza'}
+                      {newTenantData ? 'Non aggiungere licenze' : 'Nessuna licenza'}
                     </option>
                     {stats.licenses.packages
                       .filter(pkg => pkg.quantity > pkg.used)
@@ -702,7 +706,7 @@ export default function AdminPage() {
                       ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {editingAzienda 
+                    {newTenantData 
                       ? 'Seleziona un pacchetto per estendere la scadenza dell\'azienda'
                       : 'Lascia "Nessuna licenza" per creare un\'azienda demo senza scadenza'}
                   </p>
@@ -727,14 +731,14 @@ export default function AdminPage() {
                       <p className="text-xs text-gray-500 mt-1">
                         {selectedPackage && (
                           <>
-                            {editingAzienda ? 'Estensione: ' : 'Durata totale: '}
+                            {newTenantData ? 'Estensione: ' : 'Durata totale: '}
                             {formData.licenseQuantity * selectedPackage.durationMonths} mesi
                             {' '}({formData.licenseQuantity} licenze × {selectedPackage.durationMonths} mesi)
-                            {editingAzienda && editingAzienda.expiresAt && (
+                            {newTenantData && newTenantData.expiresAt && (
                               <>
                                 <br />
                                 Nuova scadenza: {new Date(
-                                  new Date(editingAzienda.expiresAt).getTime() + 
+                                  new Date(newTenantData.expiresAt).getTime() + 
                                   (formData.licenseQuantity * selectedPackage.durationMonths * 30 * 24 * 60 * 60 * 1000)
                                 ).toLocaleDateString('it-IT')}
                               </>
@@ -752,18 +756,28 @@ export default function AdminPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setShowDialog(false)}
+                onClick={() => setShowCreateModal(false)}
                 disabled={formLoading}
               >
                 Annulla
               </Button>
               <Button type="submit" disabled={formLoading}>
-                {formLoading ? 'Salvataggio...' : editingAzienda ? 'Salva' : 'Crea Azienda'}
+                {formLoading ? 'Salvataggio...' : newTenantData ? 'Salva' : 'Crea Azienda'}
               </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
+        onConfirm={handleDelete}
+        title="Elimina Azienda"
+        description={`Sei sicuro di voler eliminare "${deleteDialog.tenantName}"? Questa azione eliminerà tutti i dati associati e non può essere annullata.`}
+        confirmText="Elimina"
+        cancelText="Annulla"
+      />
     </div>
   )
 }
