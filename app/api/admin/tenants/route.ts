@@ -69,6 +69,19 @@ export async function PATCH(request: NextRequest) {
 
     const { tenantId, isActive } = await request.json()
 
+    // Verify tenant belongs to this admin
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+    })
+
+    if (!existingTenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+
+    if (existingTenant.adminId !== payload.userId) {
+      return NextResponse.json({ error: 'Forbidden - Not your tenant' }, { status: 403 })
+    }
+
     const tenant = await prisma.tenant.update({
       where: { id: tenantId },
       data: { isActive },
@@ -96,7 +109,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
-    const { slug, name, ownerEmail, ownerName, ownerPassword, packageId, licenseQuantity = 1 } = await request.json()
+    const { slug, name, ownerEmail, ownerName, ownerPassword, packageId, licenseQuantity = 1, emailConfig } = await request.json()
 
     // Check if tenant already exists
     const existingTenant = await prisma.tenant.findUnique({
@@ -150,6 +163,7 @@ export async function POST(request: NextRequest) {
           isActive: true,
           adminId: payload.userId, // Assign to this admin
           expiresAt, // Calculate expiry from NOW + package duration
+          emailConfig: emailConfig || null, // Add email config if provided
         },
       })
 

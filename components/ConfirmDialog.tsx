@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { AlertTriangle, Loader2 } from 'lucide-react'
+import React, { useState } from 'react'
+import { AlertTriangle, Loader2, LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,7 +16,11 @@ interface ConfirmDialogProps {
   description: string
   confirmText?: string
   cancelText?: string
-  variant?: 'default' | 'destructive'
+  variant?: 'default' | 'destructive' | 'success'
+  isLoading?: boolean
+  icon?: LucideIcon
+  iconColor?: string
+  iconBgColor?: string
 }
 
 export function ConfirmDialog({
@@ -28,18 +32,29 @@ export function ConfirmDialog({
   confirmText = 'Conferma',
   cancelText = 'Annulla',
   variant = 'destructive',
+  isLoading = false,
+  icon,
+  iconColor,
+  iconBgColor,
 }: ConfirmDialogProps) {
-  const [loading, setLoading] = useState(false)
+  const [internalLoading, setInternalLoading] = useState(false)
+  const loading = isLoading || internalLoading
 
   const handleConfirm = async () => {
-    setLoading(true)
-    try {
+    if (isLoading !== undefined) {
+      // Se isLoading è fornito dall'esterno, non gestiamo lo stato interno
       await onConfirm()
-      onOpenChange(false)
-    } catch (error) {
-      console.error('Error in confirm action:', error)
-    } finally {
-      setLoading(false)
+    } else {
+      // Altrimenti usiamo lo stato interno
+      setInternalLoading(true)
+      try {
+        await onConfirm()
+        onOpenChange(false)
+      } catch (error) {
+        console.error('Error in confirm action:', error)
+      } finally {
+        setInternalLoading(false)
+      }
     }
   }
 
@@ -48,16 +63,26 @@ export function ConfirmDialog({
       <DialogContent>
         <DialogHeader>
           <div className="flex items-center gap-3">
-            {variant === 'destructive' && (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+            {(icon || variant === 'destructive') && (
+              <div 
+                className="flex h-10 w-10 items-center justify-center rounded-full" 
+                style={{ backgroundColor: iconBgColor || (variant === 'destructive' ? '#fee2e2' : variant === 'success' ? '#dcfce7' : '#e0e7ff') }}
+              >
+                {icon ? (
+                  React.createElement(icon, { 
+                    className: "h-5 w-5", 
+                    style: { color: iconColor || (variant === 'destructive' ? '#dc2626' : variant === 'success' ? '#16a34a' : '#4f46e5') } 
+                  })
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                )}
               </div>
             )}
             <DialogTitle>{title}</DialogTitle>
           </div>
         </DialogHeader>
         <div className="py-4">
-          <p className="text-sm text-gray-600">{description}</p>
+          <p className="text-sm text-gray-600 whitespace-pre-line">{description}</p>
         </div>
         <div className="flex gap-2 justify-end">
           <Button
@@ -70,12 +95,13 @@ export function ConfirmDialog({
           </Button>
           <Button
             type="button"
-            variant={variant}
+            variant={variant === 'success' ? 'default' : variant}
             onClick={handleConfirm}
             disabled={loading}
+            className={variant === 'success' ? 'bg-green-600 hover:bg-green-700 text-white' : ''}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {loading ? 'Eliminazione...' : confirmText}
+            {confirmText}
           </Button>
         </div>
       </DialogContent>

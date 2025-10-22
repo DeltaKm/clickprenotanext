@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/api-middleware'
 import { rescheduleAppointmentSchema, updateAppointmentStatusSchema } from '@/lib/validations'
 import { AppointmentStatus, UserRole } from '@prisma/client'
+import { sendBookingConfirmationEmail, sendBookingRejectionEmail } from '@/lib/email'
 
 // PATCH /api/appointments/[id] - Update appointment
 export async function PATCH(
@@ -152,6 +153,57 @@ export async function PATCH(
           service: true,
         },
       })
+
+      // Invia email in base allo stato
+      const formatDate = (date: Date) => {
+        return new Intl.DateTimeFormat('it-IT', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }).format(date)
+      }
+
+      const formatTime = (date: Date) => {
+        return new Intl.DateTimeFormat('it-IT', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }).format(date)
+      }
+
+      const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('it-IT', {
+          style: 'currency',
+          currency: 'EUR',
+        }).format(price)
+      }
+
+      if (validation.data.status === AppointmentStatus.CONFIRMED) {
+        // Email conferma al cliente
+        await sendBookingConfirmationEmail(
+          context.tenant.id,
+          updated.customer.email,
+          {
+            customerName: updated.customer.name,
+            serviceName: updated.service.name,
+            bookingDate: formatDate(updated.startTime),
+            bookingTime: formatTime(updated.startTime),
+            totalPrice: formatPrice(updated.totalPrice),
+          }
+        )
+      } else if (validation.data.status === AppointmentStatus.CANCELLED) {
+        // Email rifiuto al cliente
+        await sendBookingRejectionEmail(
+          context.tenant.id,
+          updated.customer.email,
+          {
+            customerName: updated.customer.name,
+            serviceName: updated.service.name,
+            bookingDate: formatDate(updated.startTime),
+            bookingTime: formatTime(updated.startTime),
+          }
+        )
+      }
 
       return NextResponse.json({
         message: 'Appointment updated',

@@ -34,11 +34,19 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if tenant exists and is active
-    if (!user.tenant || !user.tenant.isActive) {
+    // Check if tenant exists
+    if (!user.tenant) {
       return NextResponse.json(
-        { error: 'Invalid credentials' },
+        { error: 'Account non trovato' },
         { status: 401 }
+      )
+    }
+
+    // Check if tenant is active
+    if (!user.tenant.isActive) {
+      return NextResponse.json(
+        { error: 'Account disattivato. Contatta l\'amministratore per maggiori informazioni.' },
+        { status: 403 }
       )
     }
 

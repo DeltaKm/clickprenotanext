@@ -21,7 +21,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
     }
 
-    const { slug, name, ownerEmail, ownerName, ownerPassword, packageId, licenseQuantity } = await request.json()
+    const { slug, name, ownerEmail, ownerName, ownerPassword, packageId, licenseQuantity, emailConfig } = await request.json()
     const { id: tenantId } = await params
 
     // Get current tenant
@@ -100,6 +100,7 @@ export async function PUT(
           ...(slug && { slug }),
           ...(name && { name }),
           ...(newExpiresAt && { expiresAt: newExpiresAt }),
+          ...(emailConfig !== undefined && { emailConfig: emailConfig || null }),
         },
       })
 
@@ -132,6 +133,73 @@ export async function PUT(
     return NextResponse.json(result)
   } catch (error) {
     console.error('Super Admin - Update tenant error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// Delete tenant
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.substring(7)
+    const payload = verifyAccessToken(token)
+
+    if (!payload || payload.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden - Admin only' }, { status: 403 })
+    }
+
+    const { id: tenantId } = await params
+
+    // Get tenant to verify ownership
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+    })
+
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+
+    // Verify this admin owns this tenant
+    if (tenant.adminId !== payload.userId) {
+      return NextResponse.json({ error: 'Forbidden - Not your tenant' }, { status: 403 })
+    }
+
+    // Delete tenant and decrement license usage in transaction
+    await prisma.$transaction(async (tx) => {
+      // Delete tenant (cascade will delete all related data)
+      await tx.tenant.delete({
+        where: { id: tenantId },
+      })
+
+      // Find the admin's license packages and decrement usage
+      if (tenant.adminId) {
+        const packages = await tx.licensePackage.findMany({
+          where: { 
+            adminId: tenant.adminId,
+            used: { gt: 0 },
+          },
+          orderBy: { createdAt: 'desc' }, // Decrement from newest first
+        })
+
+        if (packages.length > 0) {
+          await tx.licensePackage.update({
+            where: { id: packages[0].id },
+            data: { used: { decrement: 1 } },
+          })
+        }
+      }
+    })
+
+    return NextResponse.json({ message: 'Tenant deleted successfully' })
+  } catch (error) {
+    console.error('Admin - Delete tenant error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

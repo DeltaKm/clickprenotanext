@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Shield, Users, Building2, Calendar, UserCheck, CheckCircle, XCircle, LogOut, Plus, Edit, Trash2 } from 'lucide-react'
+import { Shield, Users, Building2, Calendar, UserCheck, CheckCircle, XCircle, LogOut, Plus, Edit, Trash2, Mail, User, Wrench, Power, PowerOff, AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { useToast } from '@/components/ui/use-toast'
+import { Toaster } from '@/components/ui/toaster'
 
 interface LicenseInfo {
   total: number
@@ -58,11 +60,15 @@ interface Azienda {
 
 export default function AdminPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [stats, setStats] = useState<Stats | null>(null)
   const [aziende, setAziende] = useState<Azienda[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; tenantId: string | null; tenantName: string }>({ open: false, tenantId: null, tenantName: '' })
+  const [toggleDialog, setToggleDialog] = useState<{ open: boolean; tenantId: string | null; tenantName: string; currentStatus: boolean }>({ open: false, tenantId: null, tenantName: '', currentStatus: false })
+  const [toggleLoading, setToggleLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [newTenantData, setNewTenantData] = useState<Azienda | null>(null)
   const [formData, setFormData] = useState({
     slug: '',
@@ -74,7 +80,28 @@ export default function AdminPage() {
     packageId: '',
     licenseQuantity: 1,
   })
+  const [tenantEmailConfig, setTenantEmailConfig] = useState({
+    host: '',
+    port: '587',
+    secure: false,
+    user: '',
+    pass: '',
+    from: '',
+    fromName: '',
+  })
+  const [showTenantEmailConfig, setShowTenantEmailConfig] = useState(false)
   const [formLoading, setFormLoading] = useState(false)
+  const [showEmailConfig, setShowEmailConfig] = useState(false)
+  const [emailConfig, setEmailConfig] = useState({
+    host: '',
+    port: '587',
+    secure: false,
+    user: '',
+    pass: '',
+    from: '',
+    fromName: '',
+  })
+  const [emailConfigLoading, setEmailConfigLoading] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -139,7 +166,92 @@ export default function AdminPage() {
     }
   }
 
-  const toggleAziendaStatus = async (tenantId: string, currentStatus: boolean) => {
+  const loadEmailConfig = async () => {
+    try {
+      const token = localStorage.getItem('accessToken')
+      const response = await fetch('/api/admin/email-config', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.emailConfig) {
+          setEmailConfig(data.emailConfig)
+        }
+      }
+    } catch (error) {
+      console.error('Load email config error:', error)
+    }
+  }
+
+  const saveEmailConfig = async () => {
+    if (!emailConfig.host || !emailConfig.user || !emailConfig.pass || !emailConfig.from || !emailConfig.fromName) {
+      alert('Compila tutti i campi obbligatori')
+      return
+    }
+
+    setEmailConfigLoading(true)
+    try {
+      const token = localStorage.getItem('accessToken')
+      const response = await fetch('/api/admin/email-config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(emailConfig),
+      })
+
+      if (response.ok) {
+        toast({
+          variant: 'success',
+          title: (
+            <div className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              <span>Configurazione Salvata</span>
+            </div>
+          ) as any,
+          description: 'La configurazione email è stata salvata con successo!',
+        })
+        setShowEmailConfig(false)
+      } else {
+        const error = await response.json()
+        toast({
+          variant: 'destructive',
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              <span>Errore</span>
+            </div>
+          ) as any,
+          description: error.error || 'Impossibile salvare la configurazione',
+        })
+      }
+    } catch (error) {
+      console.error('Save email config error:', error)
+      toast({
+        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Errore</span>
+          </div>
+        ) as any,
+        description: 'Errore durante il salvataggio',
+      })
+    } finally {
+      setEmailConfigLoading(false)
+    }
+  }
+
+  const openToggleDialog = (tenantId: string, tenantName: string, currentStatus: boolean) => {
+    setToggleDialog({ open: true, tenantId, tenantName, currentStatus })
+  }
+
+  const toggleAziendaStatus = async () => {
+    if (!toggleDialog.tenantId) return
+
+    setToggleLoading(true)
     try {
       const token = localStorage.getItem('accessToken')
       const response = await fetch('/api/admin/tenants', {
@@ -149,17 +261,55 @@ export default function AdminPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tenantId,
-          isActive: !currentStatus,
+          tenantId: toggleDialog.tenantId,
+          isActive: !toggleDialog.currentStatus,
         }),
       })
 
       if (response.ok) {
+        const newStatus = !toggleDialog.currentStatus
+        toast({
+          variant: newStatus ? 'success' : 'default',
+          title: (
+            <div className="flex items-center gap-2">
+              {newStatus ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+              <span>{newStatus ? 'Azienda Attivata' : 'Azienda Disattivata'}</span>
+            </div>
+          ) as any,
+          description: newStatus 
+            ? 'L\'azienda è stata attivata con successo. Gli utenti possono ora accedere.' 
+            : 'L\'azienda è stata disattivata. Gli utenti non potranno più accedere fino alla riattivazione.',
+        })
+        setToggleDialog({ open: false, tenantId: null, tenantName: '', currentStatus: false })
         await loadAziende()
         await checkAuth() // Reload stats
+      } else {
+        const error = await response.json()
+        toast({
+          variant: 'destructive',
+          title: (
+            <div className="flex items-center gap-2">
+              <XCircle className="h-4 w-4" />
+              <span>Errore</span>
+            </div>
+          ) as any,
+          description: error.error || 'Impossibile modificare lo stato dell\'azienda',
+        })
       }
     } catch (error) {
       console.error('Toggle tenant error:', error)
+      toast({
+        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Errore</span>
+          </div>
+        ) as any,
+        description: 'Errore durante la modifica dello stato',
+      })
+    } finally {
+      setToggleLoading(false)
     }
   }
 
@@ -183,10 +333,20 @@ export default function AdminPage() {
       packageId: firstPackage?.id || '', // Preseleziono primo pacchetto disponibile
       licenseQuantity: 1,
     })
+    setTenantEmailConfig({
+      host: '',
+      port: '587',
+      secure: false,
+      user: '',
+      pass: '',
+      from: '',
+      fromName: '',
+    })
+    setShowTenantEmailConfig(false)
     setShowCreateModal(true)
   }
 
-  const openEditDialog = (azienda: Azienda) => {
+  const openEditDialog = async (azienda: Azienda) => {
     setNewTenantData(azienda)
     setFormData({
       slug: azienda.slug,
@@ -198,6 +358,24 @@ export default function AdminPage() {
       packageId: '', // Vuoto di default in modifica
       licenseQuantity: 1,
     })
+    
+    // Carica configurazione email del tenant
+    try {
+      const token = localStorage.getItem('accessToken')
+      const response = await fetch(`/api/admin/tenants/${azienda.id}/email-config`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (response.ok) {
+        const data = await response.json()
+        if (data.emailConfig) {
+          setTenantEmailConfig(data.emailConfig)
+          setShowTenantEmailConfig(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading tenant email config:', error)
+    }
+    
     setShowCreateModal(true)
   }
 
@@ -234,6 +412,11 @@ export default function AdminPage() {
           updateData.packageId = formData.packageId
           updateData.licenseQuantity = formData.licenseQuantity
         }
+        
+        // Aggiungi configurazione email se compilata
+        if (tenantEmailConfig.host && tenantEmailConfig.user && tenantEmailConfig.from) {
+          updateData.emailConfig = tenantEmailConfig
+        }
 
         const response = await fetch(`/api/admin/tenants/${newTenantData.id}`, {
           method: 'PUT',
@@ -256,21 +439,28 @@ export default function AdminPage() {
           return
         }
 
+        const createData: any = {
+          slug: formData.slug,
+          name: formData.name,
+          ownerEmail: formData.ownerEmail,
+          ownerName: formData.ownerName,
+          ownerPassword: formData.ownerPassword,
+          packageId: formData.packageId,
+          licenseQuantity: formData.licenseQuantity,
+        }
+        
+        // Aggiungi configurazione email se compilata
+        if (tenantEmailConfig.host && tenantEmailConfig.user && tenantEmailConfig.from) {
+          createData.emailConfig = tenantEmailConfig
+        }
+        
         const response = await fetch('/api/admin/tenants', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            slug: formData.slug,
-            name: formData.name,
-            ownerEmail: formData.ownerEmail,
-            ownerName: formData.ownerName,
-            ownerPassword: formData.ownerPassword,
-            packageId: formData.packageId,
-            licenseQuantity: formData.licenseQuantity,
-          }),
+          body: JSON.stringify(createData),
         })
 
         if (!response.ok) {
@@ -283,7 +473,16 @@ export default function AdminPage() {
       await loadAziende()
       await checkAuth()
     } catch (error: any) {
-      alert(error.message || 'Errore durante il salvataggio')
+      toast({
+        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Errore</span>
+          </div>
+        ) as any,
+        description: error.message || 'Errore durante il salvataggio',
+      })
     } finally {
       setFormLoading(false)
     }
@@ -296,6 +495,7 @@ export default function AdminPage() {
   const handleDelete = async () => {
     if (!deleteDialog.tenantId) return
 
+    setDeleteLoading(true)
     try {
       const token = localStorage.getItem('accessToken')
       const response = await fetch(`/api/admin/tenants/${deleteDialog.tenantId}`, {
@@ -307,10 +507,32 @@ export default function AdminPage() {
 
       if (!response.ok) throw new Error('Failed to delete azienda')
 
+      toast({
+        variant: 'success',
+        title: (
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4" />
+            <span>Azienda Eliminata</span>
+          </div>
+        ) as any,
+        description: 'L\'azienda e tutti i dati associati sono stati eliminati definitivamente.',
+      })
+      setDeleteDialog({ open: false, tenantId: null, tenantName: '' })
       await loadAziende()
       await checkAuth()
     } catch (error) {
-      alert('Errore durante l\'eliminazione')
+      toast({
+        variant: 'destructive',
+        title: (
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Errore</span>
+          </div>
+        ) as any,
+        description: 'Errore durante l\'eliminazione dell\'azienda',
+      })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -414,6 +636,132 @@ export default function AdminPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Email Configuration Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Configurazione Email SMTP
+              </CardTitle>
+              <Button
+                onClick={() => {
+                  loadEmailConfig()
+                  setShowEmailConfig(!showEmailConfig)
+                }}
+                variant="outline"
+              >
+                {showEmailConfig ? 'Nascondi' : 'Configura'}
+              </Button>
+            </div>
+          </CardHeader>
+          {showEmailConfig && (
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  Configura il server SMTP per l&apos;invio delle email. Questa configurazione verrà applicata a tutti i tuoi business.
+                </p>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="smtp-host">Host SMTP *</Label>
+                    <Input
+                      id="smtp-host"
+                      placeholder="smtp.aruba.it"
+                      value={emailConfig.host}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, host: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Es: smtp.aruba.it, smtp.gmail.com</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="smtp-port">Porta *</Label>
+                    <Input
+                      id="smtp-port"
+                      type="number"
+                      placeholder="587"
+                      value={emailConfig.port}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, port: e.target.value })}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Comune: 587 (TLS), 465 (SSL)</p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="smtp-user">Username *</Label>
+                    <Input
+                      id="smtp-user"
+                      placeholder="noreply@tuodominio.it"
+                      value={emailConfig.user}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, user: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="smtp-pass">Password *</Label>
+                    <Input
+                      id="smtp-pass"
+                      type="password"
+                      placeholder="••••••••"
+                      value={emailConfig.pass}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, pass: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="smtp-from">Email Mittente *</Label>
+                    <Input
+                      id="smtp-from"
+                      type="email"
+                      placeholder="noreply@tuodominio.it"
+                      value={emailConfig.from}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, from: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="smtp-fromName">Nome Mittente *</Label>
+                    <Input
+                      id="smtp-fromName"
+                      placeholder="Il Tuo Business"
+                      value={emailConfig.fromName}
+                      onChange={(e) => setEmailConfig({ ...emailConfig, fromName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="smtp-secure"
+                    checked={emailConfig.secure}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, secure: e.target.checked })}
+                    className="rounded"
+                  />
+                  <Label htmlFor="smtp-secure" className="cursor-pointer">
+                    Usa SSL/TLS (consigliato per porta 465)
+                  </Label>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={saveEmailConfig}
+                    disabled={emailConfigLoading}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {emailConfigLoading ? 'Salvataggio...' : 'Salva Configurazione'}
+                  </Button>
+                  <Button
+                    onClick={() => setShowEmailConfig(false)}
+                    variant="outline"
+                  >
+                    Annulla
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          )}
+        </Card>
 
         {/* Stats Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -531,10 +879,22 @@ export default function AdminPage() {
                       )}
 
                       <div className="grid grid-cols-2 sm:flex sm:gap-4 gap-2 text-xs sm:text-sm text-gray-600">
-                        <span>👥 {azienda._count.users} utenti</span>
-                        <span>📅 {azienda._count.appointments} app.</span>
-                        <span>👤 {azienda._count.customers} clienti</span>
-                        <span>🛠️ {azienda._count.services} servizi</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" />
+                          {azienda._count.users} utenti
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {azienda._count.appointments} appuntamenti
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <User className="h-3.5 w-3.5" />
+                          {azienda._count.customers} clienti
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Wrench className="h-3.5 w-3.5" />
+                          {azienda._count.services} servizi
+                        </span>
                       </div>
 
                       {azienda.expiresAt && (
@@ -561,7 +921,7 @@ export default function AdminPage() {
                       <Button
                         variant={azienda.isActive ? 'destructive' : 'default'}
                         size="sm"
-                        onClick={() => toggleAziendaStatus(azienda.id, azienda.isActive)}
+                        onClick={() => openToggleDialog(azienda.id, azienda.name, azienda.isActive)}
                         className="flex-1 sm:flex-none text-xs sm:text-sm"
                       >
                         {azienda.isActive ? 'Disattiva' : 'Attiva'}
@@ -681,6 +1041,106 @@ export default function AdminPage() {
               />
             </div>
 
+            {/* Configurazione Email SMTP per Tenant */}
+            <div className="pt-4 border-t">
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-base font-semibold">Configurazione Email SMTP (Opzionale)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowTenantEmailConfig(!showTenantEmailConfig)}
+                >
+                  {showTenantEmailConfig ? 'Nascondi' : 'Configura'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Configura SMTP specifico per questa azienda. Se non configurato, userà le impostazioni globali dell&apos;Admin.
+              </p>
+              
+              {showTenantEmailConfig && (
+                <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="tenant-smtp-host" className="text-sm">Host SMTP</Label>
+                      <Input
+                        id="tenant-smtp-host"
+                        placeholder="smtp.aruba.it"
+                        value={tenantEmailConfig.host}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, host: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenant-smtp-port" className="text-sm">Porta</Label>
+                      <Input
+                        id="tenant-smtp-port"
+                        type="number"
+                        placeholder="587"
+                        value={tenantEmailConfig.port}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, port: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenant-smtp-user" className="text-sm">Username</Label>
+                      <Input
+                        id="tenant-smtp-user"
+                        placeholder="noreply@dominio.it"
+                        value={tenantEmailConfig.user}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, user: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenant-smtp-pass" className="text-sm">Password</Label>
+                      <Input
+                        id="tenant-smtp-pass"
+                        type="password"
+                        placeholder="••••••••"
+                        value={tenantEmailConfig.pass}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, pass: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenant-smtp-from" className="text-sm">Email Mittente</Label>
+                      <Input
+                        id="tenant-smtp-from"
+                        type="email"
+                        placeholder="noreply@dominio.it"
+                        value={tenantEmailConfig.from}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, from: e.target.value })}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="tenant-smtp-fromName" className="text-sm">Nome Mittente</Label>
+                      <Input
+                        id="tenant-smtp-fromName"
+                        placeholder="Nome Azienda"
+                        value={tenantEmailConfig.fromName}
+                        onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, fromName: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="tenant-smtp-secure"
+                      checked={tenantEmailConfig.secure}
+                      onChange={(e) => setTenantEmailConfig({ ...tenantEmailConfig, secure: e.target.checked })}
+                      className="rounded"
+                    />
+                    <Label htmlFor="tenant-smtp-secure" className="cursor-pointer text-sm">
+                      Usa SSL/TLS (porta 465)
+                    </Label>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {stats?.licenses && (
               <>
                 <div className="pt-4 border-t">
@@ -769,15 +1229,38 @@ export default function AdminPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Conferma Attiva/Disattiva */}
+      <ConfirmDialog
+        open={toggleDialog.open}
+        onOpenChange={(open) => setToggleDialog({ ...toggleDialog, open })}
+        onConfirm={toggleAziendaStatus}
+        title={toggleDialog.currentStatus ? 'Disattiva Azienda' : 'Attiva Azienda'}
+        description={
+          toggleDialog.currentStatus
+            ? `Sei sicuro di voler disattivare "${toggleDialog.tenantName}"?\n\nGli utenti di questa azienda non potranno più accedere al sistema fino alla riattivazione.`
+            : `Sei sicuro di voler attivare "${toggleDialog.tenantName}"?\n\nGli utenti di questa azienda potranno accedere nuovamente al sistema.`
+        }
+        confirmText={toggleLoading ? 'Elaborazione...' : (toggleDialog.currentStatus ? 'Disattiva' : 'Attiva')}
+        cancelText="Annulla"
+        variant={toggleDialog.currentStatus ? 'destructive' : 'success'}
+        icon={toggleDialog.currentStatus ? PowerOff : Power}
+        isLoading={toggleLoading}
+      />
+
+      {/* Dialog Conferma Eliminazione */}
       <ConfirmDialog
         open={deleteDialog.open}
         onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}
         onConfirm={handleDelete}
         title="Elimina Azienda"
-        description={`Sei sicuro di voler eliminare "${deleteDialog.tenantName}"? Questa azione eliminerà tutti i dati associati e non può essere annullata.`}
-        confirmText="Elimina"
+        description={`Sei sicuro di voler eliminare "${deleteDialog.tenantName}"?\n\nQuesta azione eliminerà PERMANENTEMENTE:\n• Tutti gli utenti\n• Tutti gli appuntamenti\n• Tutti i clienti\n• Tutti i servizi\n• Tutte le configurazioni\n\nQuesta azione NON può essere annullata!`}
+        confirmText={deleteLoading ? 'Eliminazione...' : 'Elimina Definitivamente'}
         cancelText="Annulla"
+        variant="destructive"
+        icon={AlertTriangle}
+        isLoading={deleteLoading}
       />
+      <Toaster />
     </div>
   )
 }

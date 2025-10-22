@@ -30,6 +30,14 @@ model Tenant {
   adminId       String?   @db.ObjectId // Which admin manages this tenant
   expiresAt     DateTime? // When this tenant's license expires
   
+  // Email configuration (SMTP from Admin)
+  emailConfig    Json? // SMTP config: { host, port, secure, user, pass, from, fromName }
+  emailTemplates Json? // Custom email templates override
+  
+  // Business contact info
+  businessEmail String?
+  businessPhone String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

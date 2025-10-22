@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, getTenantContext } from '@/lib/api-middleware'
 import { createAppointmentSchema } from '@/lib/validations'
 import { AppointmentStatus, UserRole } from '@prisma/client'
+import { sendBookingRequestEmail, sendOwnerNotificationEmail } from '@/lib/email'
 
 // GET /api/appointments - List appointments
 export async function GET(request: NextRequest) {
@@ -393,6 +394,7 @@ export async function POST(request: NextRequest) {
             user: {
               select: {
                 name: true,
+                email: true,
               },
             },
           },
@@ -400,6 +402,71 @@ export async function POST(request: NextRequest) {
         service: true,
       },
     })
+
+    // Invia email al cliente
+    const formatDate = (date: Date) => {
+      return new Intl.DateTimeFormat('it-IT', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(date)
+    }
+
+    const formatTime = (date: Date) => {
+      return new Intl.DateTimeFormat('it-IT', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(date)
+    }
+
+    const formatPrice = (price: number) => {
+      return new Intl.NumberFormat('it-IT', {
+        style: 'currency',
+        currency: 'EUR',
+      }).format(price)
+    }
+
+    // Email al cliente
+    await sendBookingRequestEmail(
+      tenantContext.id,
+      appointment.customer.email,
+      {
+        customerName: appointment.customer.name,
+        serviceName: appointment.service.name,
+        bookingDate: formatDate(appointment.startTime),
+        bookingTime: formatTime(appointment.startTime),
+        totalPrice: formatPrice(appointment.totalPrice),
+      }
+    )
+
+    // Email al proprietario/staff
+    const ownerUser = await prisma.user.findFirst({
+      where: {
+        tenantId: tenantContext.id,
+        role: UserRole.OWNER,
+      },
+      select: {
+        email: true,
+      },
+    })
+
+    if (ownerUser) {
+      await sendOwnerNotificationEmail(
+        tenantContext.id,
+        ownerUser.email,
+        {
+          customerName: appointment.customer.name,
+          customerEmail: appointment.customer.email,
+          customerPhone: appointment.customer.phone || 'Non fornito',
+          serviceName: appointment.service.name,
+          bookingDate: formatDate(appointment.startTime),
+          bookingTime: formatTime(appointment.startTime),
+          totalPrice: formatPrice(appointment.totalPrice),
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments`,
+        }
+      )
+    }
 
     return NextResponse.json(
       { message: 'Appointment created', appointment },
