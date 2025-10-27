@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { Calendar, Users, Clock, CheckCircle } from 'lucide-react'
 import { whitelabel } from '@/lib/whitelabel'
 
+
+// loading spinner sulal creazione servizi
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -101,9 +103,11 @@ export default function HomePage() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-6">Hai già un account?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Accedi al sistema per gestire le tue prenotazioni
+            Entra nel circuito <br />
+           <a href="tel:+39 327 032 3334">Call: +39 327 032 3334</a> <br />
+            BENNATO BROKER GLOBALE
           </p>
-          <Link
+          <Link 
             href="/login"
             className="inline-block px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 font-semibold text-lg"
           >
