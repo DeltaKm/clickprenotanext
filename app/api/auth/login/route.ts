@@ -17,10 +17,13 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, password } = validation.data
+    
+    // Normalize email to lowercase for case-insensitive comparison
+    const normalizedEmail = email.toLowerCase()
 
     // Find user by email (now unique globally)
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         tenant: true,
       },

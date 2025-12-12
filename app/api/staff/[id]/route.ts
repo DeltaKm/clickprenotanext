@@ -41,7 +41,7 @@ export async function PUT(
     // Update user data
     const userData: any = {
       name: body.name,
-      email: body.email,
+      email: body.email?.toLowerCase(),
     }
 
     // Only update password if provided

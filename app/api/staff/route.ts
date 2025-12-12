@@ -73,10 +73,13 @@ export async function POST(request: NextRequest) {
 
     const { email, password, name, bio, avatar } = validation.data
     const serviceIds = body.serviceIds || []
+    
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase()
 
     // Check if user already exists (email is now unique globally)
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     })
 
     if (existingUser) {
@@ -94,7 +97,7 @@ export async function POST(request: NextRequest) {
       const user = await tx.user.create({
         data: {
           tenantId: context.tenant.id,
-          email,
+          email: normalizedEmail,
           passwordHash,
           name,
           role: UserRole.STAFF,

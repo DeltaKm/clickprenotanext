@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { tenantSlug, tenantName, email, password, name } = validation.data
+    
+    // Normalize email to lowercase
+    const normalizedEmail = email.toLowerCase()
 
     // Check if tenant slug already exists
     const existingTenant = await prisma.tenant.findUnique({
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
       const user = await tx.user.create({
         data: {
           tenantId: tenant.id,
-          email,
+          email: normalizedEmail,
           passwordHash,
           name,
           role: UserRole.OWNER,
