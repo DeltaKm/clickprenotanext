@@ -51,6 +51,17 @@ export default function DashboardLayout({
     setUser(parsedUser)
   }, [router])
 
+  useEffect(() => {
+    if (!user) return
+
+    if (user.role === 'STAFF') {
+      const restrictedRoutes = ['/dashboard/staff', '/dashboard/services', '/dashboard/customers']
+      if (restrictedRoutes.includes(pathname)) {
+        router.replace('/dashboard/appointments')
+      }
+    }
+  }, [user, pathname, router])
+
   const handleLogout = () => {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
@@ -69,7 +80,7 @@ export default function DashboardLayout({
     )
   }
 
-  const navigation = [
+  const baseNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Link Prenotazione', href: '/dashboard/booking-link', icon: LinkIcon },
     { name: 'Appuntamenti', href: '/dashboard/appointments', icon: Calendar },
@@ -77,6 +88,10 @@ export default function DashboardLayout({
     { name: 'Staff', href: '/dashboard/staff', icon: Users },
     { name: 'Clienti', href: '/dashboard/customers', icon: UserCircle },
   ]
+  const staffAllowedRoutes = ['/dashboard', '/dashboard/booking-link', '/dashboard/appointments']
+  const navigation = user.role === 'STAFF'
+    ? baseNavigation.filter((item) => staffAllowedRoutes.includes(item.href))
+    : baseNavigation
 
   return (
     <div className="min-h-screen bg-gray-50">
