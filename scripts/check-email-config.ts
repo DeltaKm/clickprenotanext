@@ -26,21 +26,21 @@ async function checkEmailConfig() {
       
       if (tenant.emailConfig) {
         const config = tenant.emailConfig as any
-        console.log(`   ✅ Ha configurazione SMTP:`)
+        console.log(`    Ha configurazione SMTP:`)
         console.log(`      Host: ${config.host}`)
         console.log(`      Port: ${config.port}`)
         console.log(`      User: ${config.user}`)
         console.log(`      From: ${config.from}`)
         console.log(`      From Name: ${config.fromName}`)
       } else {
-        console.log(`   ⚠️  Nessuna configurazione SMTP personalizzata`)
-        console.log(`   ℹ️  Userà la configurazione globale dell'Admin (se presente)`)
+        console.log(`     Nessuna configurazione SMTP personalizzata`)
+        console.log(`     Userà la configurazione globale dell'Admin (se presente)`)
       }
     }
 
-    console.log('\n✅ Controllo completato!')
+    console.log('\nControllo completato!')
   } catch (error) {
-    console.error('❌ Errore:', error)
+    console.error(' Errore:', error)
   } finally {
     await prisma.$disconnect()
   }

@@ -51,6 +51,7 @@ interface EmailTemplates {
   bookingConfirmation?: EmailTemplate
   bookingRejection?: EmailTemplate
   ownerNotification?: EmailTemplate
+  staffNotification?: EmailTemplate
   adminNotification?: EmailTemplate
 }
 
@@ -72,6 +73,10 @@ const DEFAULT_TEMPLATES: EmailTemplates = {
   ownerNotification: {
     subject: 'Nuova prenotazione ricevuta',
     message: 'Hai ricevuto una nuova richiesta di prenotazione da {{customerName}}.',
+  },
+  staffNotification: {
+    subject: 'Nuova prenotazione assegnata',
+    message: 'Ti è stata assegnata una nuova prenotazione da {{customerName}}.',
   },
   adminNotification: {
     subject: 'Nuova prenotazione su {{businessName}}',
@@ -436,6 +441,23 @@ export async function sendOwnerNotificationEmail(
   }
 ) {
   return sendEmail(tenantId, 'ownerNotification', ownerEmail, bookingData)
+}
+
+export async function sendStaffNotificationEmail(
+  tenantId: string,
+  staffEmail: string,
+  bookingData: {
+    customerName: string
+    customerEmail: string
+    customerPhone: string
+    serviceName: string
+    bookingDate: string
+    bookingTime: string
+    totalPrice: string
+    dashboardUrl: string
+  }
+) {
+  return sendEmail(tenantId, 'staffNotification', staffEmail, bookingData)
 }
 
 export async function sendAdminNotificationEmail(

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAuth, getTenantContext } from '@/lib/api-middleware'
 import { createAppointmentSchema } from '@/lib/validations'
 import { AppointmentStatus, UserRole } from '@prisma/client'
-import { sendBookingRequestEmail, sendOwnerNotificationEmail } from '@/lib/email'
+import { sendBookingRequestEmail, sendOwnerNotificationEmail, sendStaffNotificationEmail } from '@/lib/email'
 
 // GET /api/appointments - List appointments
 export async function GET(request: NextRequest) {
@@ -451,6 +451,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments`
+
     if (ownerUser) {
       await sendOwnerNotificationEmail(
         tenantContext.id,
@@ -463,7 +465,24 @@ export async function POST(request: NextRequest) {
           bookingDate: formatDate(appointment.startTime),
           bookingTime: formatTime(appointment.startTime),
           totalPrice: formatPrice(appointment.totalPrice),
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/appointments`,
+          dashboardUrl,
+        }
+      )
+    }
+
+    if (appointment.staff?.user?.email) {
+      await sendStaffNotificationEmail(
+        tenantContext.id,
+        appointment.staff.user.email,
+        {
+          customerName: appointment.customer.name,
+          customerEmail: appointment.customer.email,
+          customerPhone: appointment.customer.phone || 'Non fornito',
+          serviceName: appointment.service.name,
+          bookingDate: formatDate(appointment.startTime),
+          bookingTime: formatTime(appointment.startTime),
+          totalPrice: formatPrice(appointment.totalPrice),
+          dashboardUrl,
         }
       )
     }
